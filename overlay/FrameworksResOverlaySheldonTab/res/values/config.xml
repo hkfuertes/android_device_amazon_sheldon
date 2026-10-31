@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tablet UI needs the 3-button navigation bar (no TV remote Home). -->
+    <bool name="config_showNavigationBar">true</bool>
+</resources>

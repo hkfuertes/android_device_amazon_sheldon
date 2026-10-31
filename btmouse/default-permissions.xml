@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<exceptions>
+    <exception package="com.amazon.sheldon.btmouse">
+        <permission name="android.permission.BLUETOOTH_SCAN" fixed="false"/>
+        <permission name="android.permission.BLUETOOTH_CONNECT" fixed="false"/>
+    </exception>
+</exceptions>

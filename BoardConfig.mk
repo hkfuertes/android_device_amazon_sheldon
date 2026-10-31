@@ -104,7 +104,13 @@ TARGET_RECOVERY_FSTAB := $(DEVICE_PATH)/rootdir/etc/fstab.mt8695
 TARGET_OTA_ASSERT_DEVICE := sheldon,sheldonp
 
 # Screen
+# Tablet UI: 240dpi => sw >= 600dp, Settings goes two-pane (verified on-device).
+# Must live here: BoardConfig is read after the product mk and would override it.
+ifeq ($(TARGET_PRODUCT),lineage_sheldon_tab)
+TARGET_SCREEN_DENSITY := 240
+else
 TARGET_SCREEN_DENSITY := 320
+endif
 
 # Verified Boot
 BOARD_AVB_ENABLE := false

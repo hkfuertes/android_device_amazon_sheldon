@@ -55,7 +55,6 @@ ro.vendor.mtk_widevine_drm_l1_support=1
 # HDMI
 persist.sys.hdmi.keep_awake=false
 ro.hdmi.wake_on_hotplug=false
-ro.hdmi.device_type=4
 ro.vendor.mtk_tb_hdmi=internal,hidl,1080plimit
 
 # Keymaster

@@ -11,7 +11,7 @@ use std::{
     collections::HashMap,
     error::Error,
     fs::{File, OpenOptions},
-    io::{self, Read, Write},
+    io::{self, BufRead, BufReader, Read, Write},
     os::{
         linux::net::SocketAddrExt,
         unix::{
@@ -19,10 +19,10 @@ use std::{
             process::CommandExt,
         },
     },
-    process::{Child, Command},
+    process::{Child, ChildStdin, Command, Stdio},
     sync::{
         Arc, Mutex,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU32, Ordering},
     },
     thread,
     time::{Duration, Instant},
@@ -30,10 +30,10 @@ use std::{
 
 use bytes::BytesMut;
 use catplay_carplay::{
-    audio::{AudioRecorder, AudioSinkBox},
+    audio::{AudioPlayer, AudioRecorder, AudioSinkBox, AudioSourceBox},
     carplay_tx::{AirPlayTransmitter, AirPlayTransmitterProxyRef, TeardownGuard},
     modes::{EntityEnum, Resource, ResourceConstraint, ResourceController, ResourceID, ResourceTransferPriority},
-    msg::{AudioFormat, AudioType, Command as CarCommand, StreamType},
+    msg::{AudioFormat, AudioType, Command as CarCommand, SiriAction, StreamType},
     rtsp_frame::{HttpStatus, RtspResult},
     screen::tx::{ScreenTransmitProxy, ScreenTransmitSink},
     video::{AvccConfig, AvccConfigExtended, EncodedVideoFrame, Pts},
@@ -46,6 +46,7 @@ use tokio::sync::mpsc;
 
 type Res<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
+const MIC_JAR: &str = "/system/framework/CarplayMic.jar";
 const SCRCPY_JAR: &str = "/system/etc/carplay/scrcpy-server.jar";
 const SCRCPY_VERSION: &str = "5.0.1"; // must match the jar exactly
 const SCRCPY_SCID: &str = "0ca7f00d";
@@ -120,6 +121,8 @@ async fn run_session(tx: TeardownGuard<AirPlayTransmitterProxyRef>) -> Res<()> {
         info!("car audio format: {f:?}");
     }
 
+    night_mode(*info.night_mode.clone().unwrap_or_default());
+
     let mut hid = HashMap::new();
     for dev in &info.hid_devices {
         match uhid_create(&dev.name, &dev.hid_descriptor) {
@@ -136,16 +139,23 @@ async fn run_session(tx: TeardownGuard<AirPlayTransmitterProxyRef>) -> Res<()> {
     take_screen_and_audio(&mut modes);
     tx.assert_modes(modes.serialize_to_state()).await?;
 
-    // Android -> car media audio. Kept open for the whole session.
-    // ponytail: always-open MainAudio/Media stream, 48k stereo PCM (scrcpy raw). Tear down when idle if a car complains.
+    // Android -> car audio. MainAudio stays open all session:
+    //   Media 48k stereo normally; Telephony 24k mono duplex (car mic -> Android) while an Android app records.
+    // ponytail: always-open stream. Tear down when idle if a car complains.
     let sink: Arc<Mutex<Option<AudioSinkBox<i16>>>> = Default::default();
     let audio_on = Arc::new(AtomicBool::new(false));
-    let recorder = Recorder { sink: sink.clone(), on: audio_on.clone() };
-    let _audio = tx
-        .setup_audio(Duration::from_millis(32), StreamType::MainAudio, AudioFormat::PCM_48000_STEREO, AudioType::Media, None, Box::new(recorder))
-        .await
-        .inspect_err(|e| warn!("audio SETUP failed, video only: {e}"))
-        .ok();
+    let voice = Arc::new(AtomicBool::new(false));
+    let gain = Arc::new(AtomicU32::new(1f32.to_bits())); // car-requested ducking
+    let (audio_gain, audio_voice, audio_sink, audio_flag) = (gain.clone(), voice.clone(), sink.clone(), audio_on.clone());
+    let (mic, mut rec_rx) = match MicHelper::start() {
+        Ok((m, rx)) => (Some(m), rx),
+        Err(e) => {
+            warn!("car mic helper unavailable: {e}");
+            (None, mpsc::channel(1).1)
+        }
+    };
+    let mic_in = mic.as_ref().map(|m| m.stdin.clone());
+    let mut audio = open_audio(&*tx, false, &sink, &audio_on, None).await;
 
     let (_android, mut video_sock, mut audio_sock, first_config) = tokio::task::spawn_blocking(move || capture(w, h, fps)).await??;
 
@@ -160,12 +170,20 @@ async fn run_session(tx: TeardownGuard<AirPlayTransmitterProxyRef>) -> Res<()> {
     thread::spawn(move || {
         let mut pcm = Vec::new();
         while let Ok(p) = read_packet(&mut audio_sock) {
-            if p.config || !audio_on.load(Ordering::Relaxed) {
+            if p.config || !audio_flag.load(Ordering::Relaxed) {
                 continue;
             }
             pcm.clear();
-            pcm.extend(p.data.chunks_exact(2).map(|b| i16::from_le_bytes([b[0], b[1]])));
-            if let Some(s) = sink.lock().unwrap().as_mut() {
+            let g = f32::from_bits(audio_gain.load(Ordering::Relaxed));
+            let s16 = p.data.chunks_exact(2).map(|b| i16::from_le_bytes([b[0], b[1]]) as f32 * g);
+            if audio_voice.load(Ordering::Relaxed) {
+                // 48k stereo -> 24k mono: average 2 frames x 2 channels (crude low-pass, fine for voice)
+                let v: Vec<f32> = s16.collect();
+                pcm.extend(v.chunks_exact(4).map(|c| (c.iter().sum::<f32>() / 4.0) as i16));
+            } else {
+                pcm.extend(s16.map(|x| x as i16));
+            }
+            if let Some(s) = audio_sink.lock().unwrap().as_mut() {
                 s.write(&pcm);
             }
         }
@@ -192,6 +210,13 @@ async fn run_session(tx: TeardownGuard<AirPlayTransmitterProxyRef>) -> Res<()> {
 
         tokio::select! {
             err = &mut closed => return Err(format!("car closed the session: {err}").into()),
+            Some(rec) = rec_rx.recv() => {
+                info!("Android {} recording: main audio -> {}", if rec { "started" } else { "stopped" }, if rec { "telephony (car mic on)" } else { "media" });
+                drop(audio.take());
+                tx.drain_teardown_queue().await?;
+                voice.store(rec, Ordering::Relaxed);
+                audio = open_audio(&*tx, rec, &sink, &audio_on, if rec { mic_in.clone() } else { None }).await;
+            }
             cmd = tx.pop_command() => {
                 let Some(mut cmd) = cmd else { continue };
                 match cmd.command().clone() {
@@ -218,6 +243,26 @@ async fn run_session(tx: TeardownGuard<AirPlayTransmitterProxyRef>) -> Res<()> {
                     }
                     CarCommand::ForceKeyFrame(_) => {
                         need_key = true; // scrcpy emits an IDR every second (i-frame-interval=1)
+                        cmd.respond_ok();
+                    }
+                    // ponytail: duck without the ramp
+                    CarCommand::DuckAudio(d) => {
+                        gain.store(10f32.powf(d.volume as f32 / 20.0).to_bits(), Ordering::Relaxed);
+                        cmd.respond_ok();
+                    }
+                    CarCommand::UnduckAudio(_) => {
+                        gain.store(1f32.to_bits(), Ordering::Relaxed);
+                        cmd.respond_ok();
+                    }
+                    CarCommand::SetNightMode(n) => {
+                        night_mode(n.night_mode);
+                        cmd.respond_ok();
+                    }
+                    CarCommand::RequestSiri(r) => {
+                        // the car's voice button opens the Android assistant (no car mic yet, see DIARIO)
+                        if r.siri_action == SiriAction::ButtonUp {
+                            thread::spawn(|| sh(&["input", "keyevent", "KEYCODE_VOICE_ASSIST"]));
+                        }
                         cmd.respond_ok();
                     }
                     other => {
@@ -275,6 +320,100 @@ fn take_screen_and_audio(m: &mut ResourceController) {
     }
 }
 
+async fn open_audio(
+    tx: &AirPlayTransmitterProxyRef,
+    voice: bool,
+    sink: &Arc<Mutex<Option<AudioSinkBox<i16>>>>,
+    on: &Arc<AtomicBool>,
+    mic_in: Option<Arc<Mutex<ChildStdin>>>,
+) -> Option<TeardownGuard<StreamType>> {
+    let recorder = Box::new(Recorder { sink: sink.clone(), on: on.clone() });
+    let (format, kind) = if voice { (AudioFormat::PCM_24000_MONO, AudioType::Telephony) } else { (AudioFormat::PCM_48000_STEREO, AudioType::Media) };
+    let player = mic_in.map(|stdin| Box::new(MicPlayer { stdin, source: None, run: Default::default() }) as _);
+    tx.setup_audio(Duration::from_millis(32), StreamType::MainAudio, format, kind, player, recorder)
+        .await
+        .inspect_err(|e| warn!("audio SETUP {kind:?} failed: {e}"))
+        .ok()
+}
+
+/// Car mic samples (24k mono) -> CarplayMic helper stdin. The player pulls from the ring at real-time pace.
+struct MicPlayer {
+    stdin: Arc<Mutex<ChildStdin>>,
+    source: Option<AudioSourceBox<i16>>,
+    run: Arc<AtomicBool>,
+}
+
+impl AudioPlayer for MicPlayer {
+    type Sample = i16;
+    fn init(&mut self, source: AudioSourceBox<i16>) -> RtspResult<()> {
+        self.source = Some(source);
+        Ok(())
+    }
+    fn start(&mut self) {
+        let Some(mut source) = self.source.take() else { return }; // ponytail: no resume after stop, the stream is re-SETUP instead
+        let (stdin, run) = (self.stdin.clone(), self.run.clone());
+        run.store(true, Ordering::Relaxed);
+        thread::spawn(move || {
+            let mut buf = [0i16; 480]; // 20 ms @ 24 kHz
+            let mut next = Instant::now();
+            while run.load(Ordering::Relaxed) {
+                source.read(&mut buf);
+                let bytes: Vec<u8> = buf.iter().flat_map(|s| s.to_le_bytes()).collect();
+                if stdin.lock().unwrap().write_all(&bytes).is_err() {
+                    break;
+                }
+                next += Duration::from_millis(20);
+                thread::sleep(next.saturating_duration_since(Instant::now()));
+            }
+        });
+    }
+    fn stop(&mut self, _drain: bool) {
+        self.run.store(false, Ordering::Relaxed);
+    }
+}
+
+/// CarplayMic.jar (app_process, shell): AudioPolicy loopback so Android apps record the car mic.
+/// stdout "REC 1"/"REC 0" when an app starts/stops recording.
+struct MicHelper {
+    child: Child,
+    stdin: Arc<Mutex<ChildStdin>>,
+}
+
+impl MicHelper {
+    fn start() -> io::Result<(Self, mpsc::Receiver<bool>)> {
+        let mut cmd = Command::new("/system/bin/app_process");
+        cmd.env("CLASSPATH", MIC_JAR)
+            .args(["/system/bin", "com.amazon.sheldon.carplay.Mic"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped());
+        as_shell(&mut cmd);
+        let mut child = cmd.spawn()?;
+        let stdin = Arc::new(Mutex::new(child.stdin.take().unwrap()));
+        let stdout = child.stdout.take().unwrap();
+        let (tx, rx) = mpsc::channel(4);
+        thread::spawn(move || {
+            for line in BufReader::new(stdout).lines().map_while(Result::ok) {
+                let rec = match line.trim() {
+                    "REC 1" => true,
+                    "REC 0" => false,
+                    _ => continue,
+                };
+                if tx.blocking_send(rec).is_err() {
+                    break;
+                }
+            }
+        });
+        Ok((Self { child, stdin }, rx))
+    }
+}
+
+impl Drop for MicHelper {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
 struct Recorder {
     sink: Arc<Mutex<Option<AudioSinkBox<i16>>>>,
     on: Arc<AtomicBool>,
@@ -328,19 +467,7 @@ impl Android {
             "power_on=true",
             "cleanup=false", // the cleanup helper would unlink /data/local/tmp/scrcpy-server.jar
         ]);
-        // Drop to shell (uid 2000) with adbd's groups: shell holds the capture/surface permissions.
-        unsafe {
-            cmd.pre_exec(|| {
-                if libc::getuid() != 0 {
-                    return Ok(()); // --selftest from adb shell: already shell
-                }
-                let groups: [libc::gid_t; 13] = [1004, 1007, 1011, 1015, 1028, 1078, 1079, 3001, 3002, 3003, 3006, 3009, 3011];
-                if libc::setgroups(groups.len() as _, groups.as_ptr()) != 0 || libc::setgid(2000) != 0 || libc::setuid(2000) != 0 {
-                    return Err(io::Error::last_os_error());
-                }
-                Ok(())
-            });
-        }
+        as_shell(&mut cmd);
         if !encoder.is_empty() {
             cmd.arg(format!("video_encoder={encoder}"));
         }
@@ -369,6 +496,26 @@ impl Drop for Android {
         sh(&["wm", "size", "reset"]);
         sh(&["svc", "power", "stayon", "false"]);
     }
+}
+
+/// Drop to shell (uid 2000) with adbd's groups: shell holds the capture/surface/audio-routing permissions.
+fn as_shell(cmd: &mut Command) {
+    unsafe {
+        cmd.pre_exec(|| {
+            if libc::getuid() != 0 {
+                return Ok(()); // --selftest from adb shell: already shell
+            }
+            let groups: [libc::gid_t; 13] = [1004, 1007, 1011, 1015, 1028, 1078, 1079, 3001, 3002, 3003, 3006, 3009, 3011];
+            if libc::setgroups(groups.len() as _, groups.as_ptr()) != 0 || libc::setgid(2000) != 0 || libc::setuid(2000) != 0 {
+                return Err(io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+}
+
+fn night_mode(on: bool) {
+    thread::spawn(move || sh(&["cmd", "uimode", "night", if on { "yes" } else { "no" }]));
 }
 
 fn sh(args: &[&str]) {

@@ -45,6 +45,7 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/permissions/tablet_core_hardware.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/tablet_core_hardware.xml
 
 # CarPlay: sheldon plays the iPhone (g_iphone modules via BoardConfig, daemon + scrcpy capture here)
+PRODUCT_PACKAGES += CarplayMic
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/carplay/prebuilt/catplay_android:$(TARGET_COPY_OUT_SYSTEM)/bin/catplay_android \
     $(LOCAL_PATH)/carplay/prebuilt/scrcpy-server.jar:$(TARGET_COPY_OUT_SYSTEM)/etc/carplay/scrcpy-server.jar \

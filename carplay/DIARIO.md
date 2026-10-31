@@ -112,3 +112,32 @@ Arquitectura final (más simple que el plan original):
 - Codec H.264 del encoder MTK (perfil por defecto); si el coche no decodifica, probar `video_codec_options=profile:int=8`.
 - mDNS 5353 puede chocar con mdnsd de Android si está activo.
 - catplay no tiene LICENSE en el repo: el binario lo incluye; uso personal.
+
+## 2026-10-31/11-01 noche — piezas restantes (solo compilado, SIN probar en hardware)
+- **hid-multitouch.ko** (fuente 4.4 sin cambios, `carplay/hid_multitouch/`): las pantallas de coche con Contact ID
+  caen en HID_GROUP_MULTITOUCH y hid-generic no las coge; sin este módulo no habría touch. Se carga en carplay.rc.
+- **Selftest sin coche**: `adb shell su -c "catplay_android --selftest 800x480"` (o como shell). Crea un touch uhid,
+  arranca scrcpy al tamaño dado, comprueba SPS/PPS + IDR + paquetes de audio. No toca USB.
+- **Encoder**: espera 5 s al SPS/PPS del encoder por defecto (MTK OMX); si no llega, reintenta con
+  `c2.android.avc.encoder` (software). Forzar: `setprop persist.vendor.carplay.encoder <nombre>`.
+  Otros knobs: `persist.vendor.carplay.bitrate` (8000000), `persist.vendor.carplay.codec_options`
+  (`i-frame-interval:float=1`; añadir `,profile:int=1` = Baseline si el coche no decodifica).
+- scrcpy con `cleanup=false` (su helper de cleanup borra /data/local/tmp/scrcpy-server.jar).
+- **Comandos del coche**: SetNightMode → `cmd uimode night yes|no` (y al inicio según info del coche);
+  Duck/Unduck → ganancia en el PCM (sin rampa); botón de voz (RequestSiri ButtonUp) → KEYCODE_VOICE_ASSIST.
+- **Mic coche → Android** (`carplay/mic/`, `CarplayMic.jar` en /system/framework): app_process como shell
+  (tiene MODIFY_AUDIO_ROUTING) registra un AudioPolicy loopback (patrón "injection" de CTS, HAL r_submix) que captura
+  todo AudioRecord con fuente MIC/DEFAULT/VOICE_*/CAMCORDER y le inyecta el PCM del coche (stdin, s16le 24k mono).
+  Avisa por stdout `REC 1/0` cuando una app graba → el daemon cambia MainAudio de Media 48k estéreo a
+  **Telephony 24k mono dúplex** (salida Android remuestreada 48k st → 24k mono) y vuelve al soltar.
+  Riesgo: no sé si el coche acepta Telephony sin declarar appState phoneCall en modes.
+
+- **Build final OK** (BUILD-EXIT 0): `lineage-20.0-20261031-UNOFFICIAL-sheldon_tab.zip` sha256
+  `fcdd2fd09386fcc3f09f24936d8139af4b078f3704bade9b3cc4c32383e6af6d`. En target_files: catplay_android, CarplayMic.jar,
+  carplay.rc, scrcpy jar, idc y 6 .ko (5 g_iphone + hid-multitouch). Nota: el Makefile del módulo externo debe llamarse
+  `Makefile` (modpost de 4.4 no lee `Kbuild`).
+
+### Prueba sugerida (otro día, en el sheldon)
+1. `adb shell catplay_android --selftest 800x480` → debe acabar en `selftest: PASS` (dice qué encoder vale).
+2. `adb tcpip 5555; adb connect <ip>; adb shell setprop persist.vendor.carplay.enable 1`, enchufar al coche,
+   `adb logcat -s catplay_android`.

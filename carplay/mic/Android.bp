@@ -1,0 +1,10 @@
+// Car microphone -> Android apps. Run by catplay_android via app_process as shell (see Mic.java).
+java_library {
+    name: "CarplayMic",
+    srcs: ["src/**/*.java"],
+    platform_apis: true,
+    installable: true,
+    dex_preopt: {
+        enabled: false,
+    },
+}

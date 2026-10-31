@@ -10,6 +10,10 @@ $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base.mk)
 # Inherit from device makefile.
 $(call inherit-product, device/amazon/sheldon/device.mk)
 
+# No camera hardware on the stick: LOS knob drops the Aperture camera app.
+# Must be set before inheriting the common config below.
+PRODUCT_NO_CAMERA := true
+
 # Inherit some common LineageOS stuff.
 $(call inherit-product, vendor/lineage/config/common_full_tablet_wifionly.mk)
 
@@ -28,6 +32,10 @@ PRODUCT_AAPT_PREF_CONFIG := xhdpi
 #   adb shell am broadcast -a com.amazon.sheldon.btmouse.START
 PRODUCT_PACKAGES += BtMouseAutoPair
 PRODUCT_PACKAGES += FrameworksResOverlaySheldonTab
+
+# adb shell btmousepair -> opens the BT mouse pairing window
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/btmouse/btmousepair:$(TARGET_COPY_OUT_SYSTEM)/bin/btmousepair \
 
 # 240dpi => sw >= 600dp: Settings (and other apps) split into two panes.
 # Verified on-device: 320/288 don't split at this panel size, 240 does.

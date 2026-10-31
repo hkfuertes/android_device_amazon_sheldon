@@ -1,0 +1,6 @@
+#!/system/bin/sh
+# Open a 15-minute Bluetooth mouse pairing window (BtMouseAutoPair).
+# Usage (from host): adb shell btmousepair
+am broadcast -a com.amazon.sheldon.btmouse.START \
+  -n com.amazon.sheldon.btmouse/.BtMouseAutoPair >/dev/null
+echo "BT mouse pairing window OPEN (15 min) - hold the mouse's pairing button."

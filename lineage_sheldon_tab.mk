@@ -32,6 +32,7 @@ PRODUCT_AAPT_PREF_CONFIG := xhdpi
 #   adb shell am broadcast -a com.amazon.sheldon.btmouse.START
 PRODUCT_PACKAGES += BtMouseAutoPair
 PRODUCT_PACKAGES += FrameworksResOverlaySheldonTab
+PRODUCT_PACKAGES += SettingsOverlaySheldonTab
 
 # adb shell btmousepair -> opens the BT mouse pairing window
 PRODUCT_COPY_FILES += \

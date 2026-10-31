@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- No battery hardware: hide the top-level Battery entry, which
+         otherwise just says "Problem reading the battery meter." -->
+    <bool name="config_show_top_level_battery">false</bool>
+</resources>

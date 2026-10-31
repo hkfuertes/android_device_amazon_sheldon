@@ -62,8 +62,13 @@ public class BtMouseAutoPair extends BroadcastReceiver {
                 break;
             case ACTION_CYCLE: {
                 long deadline = intent.getLongExtra(EXTRA_DEADLINE, 0);
-                if (SystemClock.elapsedRealtime() > deadline) return;
+                long left = (deadline - SystemClock.elapsedRealtime()) / 1000;
+                if (left < 0) {
+                    Log.i(TAG, "pairing window closed");
+                    return;
+                }
                 if (hasUsablePointer(ctx)) return; // done: no more cycles
+                Log.i(TAG, "scanning, " + left + "s left");
                 BluetoothAdapter ad = BluetoothAdapter.getDefaultAdapter();
                 if (ad != null && ad.isEnabled()) {
                     try {
@@ -189,7 +194,10 @@ public class BtMouseAutoPair extends BroadcastReceiver {
         Intent i = new Intent(ctx, BtMouseAutoPair.class)
                 .setAction(ACTION_CYCLE)
                 .putExtra(EXTRA_DEADLINE, deadline);
-        PendingIntent pi = PendingIntent.getBroadcast(ctx, 0, i, PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent pi = PendingIntent.getBroadcast(ctx, 0, i,
+                // UPDATE_CURRENT: otherwise a still-cached PendingIntent keeps
+                // its old (possibly expired) deadline extra.
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
         am.set(AlarmManager.ELAPSED_REALTIME,
                 SystemClock.elapsedRealtime() + SCAN_EVERY_MS, pi);
     }

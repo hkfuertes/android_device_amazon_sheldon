@@ -7,6 +7,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation"/>
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_PRIVILEGED"/>
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30"/>
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30"/>
 
@@ -17,6 +18,10 @@
                 <action android:name="android.bluetooth.adapter.action.STATE_CHANGED"/>
                 <action android:name="android.bluetooth.device.action.FOUND"/>
                 <action android:name="com.amazon.sheldon.btmouse.START"/>
+            </intent-filter>
+            <!-- Ordered broadcast: run before Settings' pairing dialog. -->
+            <intent-filter android:priority="1000">
+                <action android:name="android.bluetooth.device.action.PAIRING_REQUEST"/>
             </intent-filter>
         </receiver>
     </application>

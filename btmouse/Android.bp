@@ -1,6 +1,6 @@
 android_app {
     name: "BtMouseAutoPair",
     srcs: ["src/com/amazon/sheldon/btmouse/BtMouseAutoPair.java"],
-    sdk_version: "current",
+    sdk_version: "system_current", // isBondingInitiatedLocally, PAIRING_VARIANT_CONSENT
     privileged: true,
 }

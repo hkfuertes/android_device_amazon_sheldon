@@ -8,6 +8,7 @@ import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.view.InputDevice;
 import android.hardware.input.InputManager;
 import android.os.SystemClock;
@@ -33,6 +34,15 @@ public class BtMouseAutoPair extends BroadcastReceiver {
     static final String EXTRA_DEADLINE = "deadline";
     private static final long WINDOW_MS = 15 * 60 * 1000;
     private static final long SCAN_EVERY_MS = 16 * 1000; // ~12s inquiry + gap
+    // Bond requested by us; only this address gets its pairing auto-confirmed.
+    private static final String PREF_PENDING = "pending_addr";
+    private static final String PREF_PENDING_AT = "pending_at";
+    private static final long PENDING_TTL_MS = 60 * 1000;
+
+    private static SharedPreferences prefs(Context ctx) {
+        return ctx.createDeviceProtectedStorageContext()
+                .getSharedPreferences("btmouse", Context.MODE_PRIVATE);
+    }
 
     @Override
     public void onReceive(Context ctx, Intent intent) {
@@ -66,6 +76,31 @@ public class BtMouseAutoPair extends BroadcastReceiver {
                 }
                 break;
             }
+            case BluetoothDevice.ACTION_PAIRING_REQUEST: {
+                // No way to press "Pair" without a pointer: confirm it
+                // ourselves, but ONLY for the bond this app just requested.
+                // Pairings started from Settings keep the normal dialog.
+                BluetoothDevice d = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                int variant = intent.getIntExtra(BluetoothDevice.EXTRA_PAIRING_VARIANT, -1);
+                if (d == null || (variant != BluetoothDevice.PAIRING_VARIANT_CONSENT
+                        && variant != BluetoothDevice.PAIRING_VARIANT_PASSKEY_CONFIRMATION)) {
+                    return; // PIN/passkey entry: leave it to the normal dialog
+                }
+                SharedPreferences p = prefs(ctx);
+                boolean ours = d.getAddress().equals(p.getString(PREF_PENDING, null))
+                        && SystemClock.elapsedRealtime() - p.getLong(PREF_PENDING_AT, 0)
+                                < PENDING_TTL_MS;
+                if (!ours) return;
+                p.edit().remove(PREF_PENDING).commit();
+                try {
+                    Log.i(TAG, "auto-confirming pairing: " + d.getName());
+                    d.setPairingConfirmation(true);
+                    abortBroadcast(); // keep Settings' dialog from popping up
+                } catch (SecurityException e) {
+                    Log.e(TAG, "missing BLUETOOTH_PRIVILEGED grant", e);
+                }
+                break;
+            }
             case BluetoothDevice.ACTION_FOUND: {
                 BluetoothDevice d = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                 BluetoothClass cls = intent.getParcelableExtra(BluetoothDevice.EXTRA_CLASS);
@@ -73,6 +108,11 @@ public class BtMouseAutoPair extends BroadcastReceiver {
                         || d.getBondState() != BluetoothDevice.BOND_NONE) return;
                 try {
                     Log.i(TAG, "auto-bonding pointer: " + d.getName());
+                    // commit(): the process may die before PAIRING_REQUEST
+                    prefs(ctx).edit()
+                            .putString(PREF_PENDING, d.getAddress())
+                            .putLong(PREF_PENDING_AT, SystemClock.elapsedRealtime())
+                            .commit();
                     d.createBond();
                 } catch (SecurityException e) {
                     Log.e(TAG, "missing BLUETOOTH_CONNECT grant", e);

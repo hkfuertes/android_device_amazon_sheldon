@@ -38,11 +38,7 @@ PRODUCT_PACKAGES += SettingsOverlaySheldonTab
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/btmouse/btmousepair:$(TARGET_COPY_OUT_SYSTEM)/bin/btmousepair \
 
-# 240dpi => sw >= 600dp: Settings (and other apps) split into two panes.
-# Verified on-device: 320/288 don't split at this panel size, 240 does.
-# Overrides BoardConfig's 320 (which feeds ADDITIONAL_VENDOR_PROPERTIES);
-# setting the prop here too would trip the duplicate-sysprop check.
-TARGET_SCREEN_DENSITY := 240
+# Density (240) is set per-product in BoardConfig.mk.
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/btmouse/default-permissions.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/default-permissions/btmouse.xml \
     $(LOCAL_PATH)/btmouse/privapp-permissions.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/privapp-permissions-com.amazon.sheldon.btmouse.xml \

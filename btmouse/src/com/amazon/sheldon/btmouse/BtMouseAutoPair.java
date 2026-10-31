@@ -8,9 +8,10 @@ import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.hardware.input.InputDevice;
+import android.view.InputDevice;
 import android.hardware.input.InputManager;
 import android.os.SystemClock;
+import android.provider.Settings;
 import android.util.Log;
 
 /**
@@ -40,6 +41,7 @@ public class BtMouseAutoPair extends BroadcastReceiver {
         switch (action) {
             case Intent.ACTION_BOOT_COMPLETED:
             case ACTION_START:
+                hideBatteryIcon(ctx);
                 schedule(ctx, SystemClock.elapsedRealtime() + WINDOW_MS);
                 break;
             case BluetoothAdapter.ACTION_STATE_CHANGED:
@@ -125,6 +127,21 @@ public class BtMouseAutoPair extends BroadcastReceiver {
         return dc == BluetoothClass.Device.PERIPHERAL_POINTING
                 || dc == BluetoothClass.Device.PERIPHERAL_KEYBOARD_POINTING
                 || dc == BluetoothClass.Device.PERIPHERAL_NON_KEYBOARD_NON_POINTING;
+    }
+
+    /** Device has no battery: hide the status-bar battery icon via the
+     *  system icon blacklist. Only seeds the value when unset, so a manual
+     *  `settings put secure icon_blacklist` wins from then on. */
+    private static void hideBatteryIcon(Context ctx) {
+        try {
+            if (Settings.Secure.getString(ctx.getContentResolver(),
+                    "icon_blacklist") == null) {
+                Settings.Secure.putString(ctx.getContentResolver(),
+                        "icon_blacklist", "battery");
+            }
+        } catch (SecurityException e) {
+            Log.w(TAG, "cannot write icon_blacklist: " + e);
+        }
     }
 
     private static void schedule(Context ctx, long deadline) {

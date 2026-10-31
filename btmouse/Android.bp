@@ -2,4 +2,5 @@ android_app {
     name: "BtMouseAutoPair",
     srcs: ["src/com/amazon/sheldon/btmouse/BtMouseAutoPair.java"],
     sdk_version: "current",
+    privileged: true,
 }

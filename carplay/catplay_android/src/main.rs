@@ -61,6 +61,18 @@ async fn main() {
     }
     catplay_tracing::logger::setup_prod_logger();
 
+    if std::env::args().nth(1).as_deref() == Some("--selftest") {
+        let size = std::env::args().nth(2).unwrap_or("800x480".into());
+        let (w, h) = size.split_once('x').and_then(|(w, h)| Some((w.parse().ok()?, h.parse().ok()?))).unwrap_or((800, 480));
+        std::process::exit(match selftest(w, h) {
+            Ok(()) => 0,
+            Err(e) => {
+                error!("SELFTEST FAILED: {e}");
+                1
+            }
+        });
+    }
+
     // The single UDC (mtu3) is held by Android's configfs gadget (adb/mtp). Free it for g_iphone.
     // adb over USB is gone while this runs: use adb over WiFi.
     if let Err(e) = std::fs::write("/config/usb_gadget/g1/UDC", "none") {
@@ -135,9 +147,7 @@ async fn run_session(tx: TeardownGuard<AirPlayTransmitterProxyRef>) -> Res<()> {
         .inspect_err(|e| warn!("audio SETUP failed, video only: {e}"))
         .ok();
 
-    let android = Android::start(w, h, fps)?;
-    let mut video_sock = android.connect()?;
-    let mut audio_sock = android.connect()?;
+    let (_android, mut video_sock, mut audio_sock, first_config) = tokio::task::spawn_blocking(move || capture(w, h, fps)).await??;
 
     let (vtx, mut vrx) = mpsc::channel::<Packet>(8);
     thread::spawn(move || {
@@ -164,7 +174,7 @@ async fn run_session(tx: TeardownGuard<AirPlayTransmitterProxyRef>) -> Res<()> {
     let closed = tx.closed();
     tokio::pin!(closed);
     let mut screen: Option<TeardownGuard<ScreenTransmitProxy>> = None;
-    let mut sps_pps = Vec::new();
+    let mut sps_pps = first_config.data;
     let mut need_key = true;
 
     loop {
@@ -290,13 +300,13 @@ struct Android {
 }
 
 impl Android {
-    fn start(w: u32, h: u32, fps: u32) -> io::Result<Self> {
+    fn start(w: u32, h: u32, fps: u32, encoder: &str) -> io::Result<Self> {
         sh(&["wm", "size", &format!("{w}x{h}")]);
         sh(&["svc", "power", "stayon", "true"]);
         sh(&["input", "keyevent", "KEYCODE_WAKEUP"]);
 
         let mut cmd = Command::new("/system/bin/app_process");
-        cmd.env("CLASSPATH", SCRCPY_JAR).args([
+        cmd.env("CLASSPATH", std::env::var("CATPLAY_SCRCPY_JAR").unwrap_or(SCRCPY_JAR.into())).args([
             "/",
             "com.genymobile.scrcpy.Server",
             SCRCPY_VERSION,
@@ -308,23 +318,31 @@ impl Android {
             "audio_codec=raw",
             &format!("max_size={}", w.max(h)),
             &format!("max_fps={fps}"),
-            "video_bit_rate=8000000",
-            "video_codec_options=i-frame-interval:float=1",
+            &format!("video_bit_rate={}", prop("persist.vendor.carplay.bitrate", "8000000")),
+            // e.g. "i-frame-interval:float=1,profile:int=1" (1 = Baseline) if the car can't decode High
+            &format!("video_codec_options={}", prop("persist.vendor.carplay.codec_options", "i-frame-interval:float=1")),
             "send_device_meta=false",
             "send_stream_meta=false",
             "send_dummy_byte=false",
             "stay_awake=true",
             "power_on=true",
+            "cleanup=false", // the cleanup helper would unlink /data/local/tmp/scrcpy-server.jar
         ]);
         // Drop to shell (uid 2000) with adbd's groups: shell holds the capture/surface permissions.
         unsafe {
             cmd.pre_exec(|| {
+                if libc::getuid() != 0 {
+                    return Ok(()); // --selftest from adb shell: already shell
+                }
                 let groups: [libc::gid_t; 13] = [1004, 1007, 1011, 1015, 1028, 1078, 1079, 3001, 3002, 3003, 3006, 3009, 3011];
                 if libc::setgroups(groups.len() as _, groups.as_ptr()) != 0 || libc::setgid(2000) != 0 || libc::setuid(2000) != 0 {
                     return Err(io::Error::last_os_error());
                 }
                 Ok(())
             });
+        }
+        if !encoder.is_empty() {
+            cmd.arg(format!("video_encoder={encoder}"));
         }
         Ok(Self { scrcpy: cmd.spawn()? })
     }
@@ -358,6 +376,31 @@ fn sh(args: &[&str]) {
         Ok(s) if s.success() => {}
         r => warn!("{args:?}: {r:?}"),
     }
+}
+
+const SW_ENCODER: &str = "c2.android.avc.encoder";
+
+/// Starts scrcpy and waits for the H.264 config (SPS/PPS). The configured encoder (default: scrcpy's pick,
+/// the MTK OMX HW one) gets 5 s; if it produces nothing, retry with the software encoder.
+/// Force one with persist.vendor.carplay.encoder (or CATPLAY_ENCODER).
+fn capture(w: u32, h: u32, fps: u32) -> Res<(Android, UnixStream, UnixStream, Packet)> {
+    let configured = std::env::var("CATPLAY_ENCODER").unwrap_or_else(|_| prop("persist.vendor.carplay.encoder", ""));
+    let encoders = if configured == SW_ENCODER { vec![SW_ENCODER] } else { vec![configured.as_str(), SW_ENCODER] };
+    for enc in encoders {
+        let android = Android::start(w, h, fps, enc)?;
+        let mut video = android.connect()?;
+        let audio = android.connect()?;
+        video.set_read_timeout(Some(Duration::from_secs(5)))?;
+        match read_packet(&mut video) {
+            Ok(p) if p.config => {
+                video.set_read_timeout(None)?;
+                info!("H.264 encoder '{}' OK", if enc.is_empty() { "default" } else { enc });
+                return Ok((android, video, audio, p));
+            }
+            r => warn!("encoder '{enc}' gave no H.264 config ({:?})", r.err()),
+        }
+    }
+    Err("no working H.264 encoder".into())
 }
 
 struct Packet {
@@ -407,4 +450,66 @@ fn uhid_input(f: &mut File, report: &[u8]) -> io::Result<()> {
     ev[4..6].copy_from_slice(&(n as u16).to_ne_bytes());
     ev[6..].copy_from_slice(&report[..n]);
     f.write_all(&ev)
+}
+
+fn prop(name: &str, default: &str) -> String {
+    let v = Command::new("/system/bin/getprop").arg(name).output().map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string());
+    match v {
+        Ok(v) if !v.is_empty() => v,
+        _ => default.to_string(),
+    }
+}
+
+/// Everything except the car: uhid touchscreen + scrcpy capture at WxH. Safe to run from `adb shell`
+/// (no UDC/USB changes). Usage: catplay_android --selftest [800x480]
+fn selftest(w: u32, h: u32) -> Res<()> {
+    let name = "catplay selftest touch";
+    let mut touch = uhid_create(name, &catplay_hid::TouchScreenSingleReport::descriptor(w as u16, h as u16))?;
+    thread::sleep(Duration::from_millis(500));
+    // hover report (tip switch off): exercises the path without clicking anything
+    uhid_input(&mut touch, &catplay_hid::TouchScreenSingleReport::new(false, w as u16 / 2, h as u16 / 2).to_bytes())?;
+    let devices = std::fs::read_to_string("/proc/bus/input/devices").unwrap_or_default();
+    if !devices.contains(name) {
+        return Err("uhid device did not show up in /proc/bus/input/devices".into());
+    }
+    info!("selftest: uhid touchscreen OK");
+
+    let (android, mut video, mut audio, first) = capture(w, h, 30)?;
+    info!("selftest: SPS/PPS {} bytes, starts {:02x?}", first.data.len(), &first.data[..first.data.len().min(8)]);
+    let audio_pkts = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let ap = audio_pkts.clone();
+    thread::spawn(move || {
+        while let Ok(p) = read_packet(&mut audio) {
+            if !p.config {
+                ap.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+    });
+    video.set_read_timeout(Some(Duration::from_secs(5)))?;
+    let (mut config, mut keys, mut frames, mut bytes) = (1, 0, 0, 0); // 1: the config capture() already read
+    let t0 = Instant::now();
+    while t0.elapsed() < Duration::from_secs(5) {
+        let Ok(p) = read_packet(&mut video) else { break };
+        if p.config {
+            config += 1;
+            info!("selftest: SPS/PPS {} bytes, starts {:02x?}", p.data.len(), &p.data[..p.data.len().min(8)]);
+        } else {
+            frames += 1;
+            keys += p.key as u32;
+            bytes += p.data.len();
+        }
+    }
+    let secs = t0.elapsed().as_secs_f32();
+    info!(
+        "selftest: video {frames} frames ({keys} key, {config} config) {:.1} fps {:.0} kbit/s; audio {} packets",
+        frames as f32 / secs,
+        bytes as f32 * 8.0 / 1000.0 / secs,
+        audio_pkts.load(Ordering::Relaxed)
+    );
+    drop(android);
+    if config == 0 || keys == 0 {
+        return Err("no H.264 config/keyframe from scrcpy (static screen gives few frames, but config+IDR must arrive)".into());
+    }
+    info!("selftest: PASS");
+    Ok(())
 }

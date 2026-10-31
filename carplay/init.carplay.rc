@@ -7,6 +7,7 @@ on property:persist.vendor.carplay.enable=1
     insmod /vendor/lib/modules/iap2_scan.ko
     insmod /vendor/lib/modules/iap2_hid.ko
     insmod /vendor/lib/modules/g_iphone.ko
+    insmod /vendor/lib/modules/hid-multitouch.ko
     # g_iphone switches the mtu3 role through debugfs usb/<udc>/mode
     mount debugfs debugfs /sys/kernel/debug
     # the car's NCM link is IPv6 link-local only

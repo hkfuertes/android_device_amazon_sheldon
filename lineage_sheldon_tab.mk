@@ -27,9 +27,14 @@ PRODUCT_AAPT_PREF_CONFIG := xhdpi
 # Also triggerable on demand:
 #   adb shell am broadcast -a com.amazon.sheldon.btmouse.START
 PRODUCT_PACKAGES += BtMouseAutoPair
+PRODUCT_PACKAGES += FrameworksResOverlaySheldonTab
+
+# 240dpi => sw >= 600dp: Settings (and other apps) split into two panes.
+# Verified on-device: 320/288 don't split at this panel size, 240 does.
+PRODUCT_PROPERTY_OVERRIDES += ro.sf.lcd_density=240
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/btmouse/default-permissions.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/default-permissions/btmouse.xml \
     $(LOCAL_PATH)/btmouse/privapp-permissions.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/privapp-permissions-com.amazon.sheldon.btmouse.xml \
-    $(LOCAL_PATH)/permissions/android.software.app_widgets.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/android.software.app_widgets.xml
+    $(LOCAL_PATH)/permissions/tablet_core_hardware.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/tablet_core_hardware.xml
 
 BUILD_FINGERPRINT := google/adt2/adt2:9/PTT5.190307.001/5360859:user/dev-keys

@@ -23,4 +23,11 @@ PRODUCT_MODEL := Fire TV Stick (Tablet UI)
 PRODUCT_CHARACTERISTICS := tablet
 PRODUCT_AAPT_PREF_CONFIG := xhdpi
 
+# Auto-pair BT mice on boot (no touch input on a TV stick).
+# Also triggerable on demand:
+#   adb shell am broadcast -a com.amazon.sheldon.btmouse.START
+PRODUCT_PACKAGES += BtMouseAutoPair
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/btmouse/default-permissions.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/default-permissions/btmouse.xml
+
 BUILD_FINGERPRINT := google/adt2/adt2:9/PTT5.190307.001/5360859:user/dev-keys

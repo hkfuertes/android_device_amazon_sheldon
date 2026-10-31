@@ -78,3 +78,37 @@ Role switch: solo lo prueba un coche real (0x51); en banco se puede forzar `echo
 - `GadgetHelper::change_usb_otg_role/get_usb_otg_role` usan `/sys/class/usb_role` → en 4.4 devolverá "auto-managed"
   (no existe): OK porque el role switch lo hace el kernel (iphone_rs). Revisar `get_usb_otg_role` si algo depende de él.
 - `cleanup_once()` = `usb_gadget::unbind_all/remove_all` → desmonta TAMBIÉN el gadget configfs de Android (adb). Asumido en modo coche.
+
+## 2026-10-31 noche — Fase 2-5 (todo de golpe, se prueba con la build final)
+Arquitectura final (más simple que el plan original):
+- **Daemon `catplay_android`** (Rust, `carplay/catplay_android/src/main.rs`, ~350 líneas): miembro del workspace catplay
+  @bc6edae, binario **estático armv7 musl** (no NDK) → `carplay/prebuilt/catplay_android` → `/system/bin`.
+  Build: `docker build -t catplay-builder carplay/catplay_android` (musl-cross-make + rustup + libusb) y
+  `docker run --rm -v /mnt/DATA:/mnt/DATA -v /mnt/DATA/los-build/cargo:/cargo catplay-builder carplay/build-daemon.sh`.
+  Gotchas: catplay_hap necesita OpenSSL → `openssl/vendored`; catplay_audio fuerza opus dinámico y el build.rs de
+  libopus_sys mira `cfg!(musl)` del HOST → `LIBOPUS_STATIC=1`.
+- **Vídeo + audio Android→coche: scrcpy-server 5.0.1** (Apache-2.0, `prebuilt/scrcpy-server.jar` → `/system/etc/carplay/`),
+  lanzado por el daemon como uid shell (setgroups/setgid/setuid en pre_exec) vía app_process: espejo SurfaceFlinger →
+  MediaCodec HW H.264 (IDR cada 1 s) + REMOTE_SUBMIX PCM 48k estéreo. Sockets abstractos `scrcpy_0ca7f00d`.
+  Antes: `wm size <ancho coche>x<alto coche>`, `svc power stayon true`, WAKEUP. Al terminar: `wm size reset`.
+- **Touch/mando/botones del coche → `/dev/uhid`** con el descriptor HID del propio coche (CONFIG_UHID=y, hid-generic).
+  VID:PID fijo 1209:ca7a + `/vendor/usr/idc/Vendor_1209_Product_ca7a.idc` (touch.deviceType = touchScreen).
+- Protocolo: record → take screen+mainAudio (UserInitiated) → modesChanged → audio SETUP (MainAudio/Media PCM_48000_STEREO,
+  abierto toda la sesión) → screen SETUP; ChangeModes del coche → process_request_to_response + modesChanged; si el coche
+  quita la pantalla → TEARDOWN; RequestUI → retomar. ForceKeyFrame → descartar hasta el próximo IDR (≤1 s).
+- **Arranque**: `carplay.rc` (system/etc/init), off por defecto: `setprop persist.vendor.carplay.enable 1` → insmod de los
+  5 .ko, mount debugfs, IPv6 on, `start vendor.catplay` (logwrapper, seclabel su). Daemon libera el UDC de g1 (adb USB fuera).
+  `=0` → para, quita g_iphone y devuelve el UDC a g1.
+- g_iphone: `iphone_rs` trata `-EINVAL` de mtu3 debugfs ("duplicated setting") como "ya está en ese rol".
+- Smoke test: binario arranca en un Android armv7 real (Echo radar, como shell): logger OK, reintenta gadget cada 1 s.
+- **Build final OK** (BUILD-EXIT 0): zip `lineage-20.0-20261031-UNOFFICIAL-sheldon_tab.zip` sha256 `0ad8b649bf56294b0f8c918da494f822452d095d58d34b7f267026c0e53b93eb`.
+  Verificado en target_files: catplay_android (= prebuilt), carplay.rc, scrcpy jar, idc, 5 .ko en vendor/lib/modules.
+
+### NO hecho / riesgos conocidos
+- **Mic coche→Android** (Siri/llamadas): no. Necesita mic virtual en el HAL de audio.
+- Multitouch: sin CONFIG_HID_MULTITOUCH, solo 1 dedo fiable.
+- Display sin HDMI conectado: no verificado que SurfaceFlinger siga componiendo (dumpsys dio display 0 presente).
+- Rol host: mtu3 enciende su regulador VBUS a la vez que el coche da VBUS (igual que el modo cable-Y de Amazon).
+- Codec H.264 del encoder MTK (perfil por defecto); si el coche no decodifica, probar `video_codec_options=profile:int=8`.
+- mDNS 5353 puede chocar con mdnsd de Android si está activo.
+- catplay no tiene LICENSE en el repo: el binario lo incluye; uso personal.

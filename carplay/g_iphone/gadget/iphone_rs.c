@@ -67,6 +67,11 @@ static int iphone_rs_sysfs_set_role(struct iphone_rs *rs, enum usb_role role)
 	written = kernel_write(file, role_str, role_len, &pos);
 #endif
 	filp_close(file, NULL);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0)
+	/* mtu3 debugfs answers -EINVAL to a "duplicated setting": already in that role. */
+	if (written == -EINVAL)
+		written = role_len;
+#endif
 	if (written < 0)
 		return written;
 	if (written != role_len)

@@ -44,4 +44,11 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/btmouse/privapp-permissions.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/privapp-permissions-com.amazon.sheldon.btmouse.xml \
     $(LOCAL_PATH)/permissions/tablet_core_hardware.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/tablet_core_hardware.xml
 
+# CarPlay: sheldon plays the iPhone (g_iphone modules via BoardConfig, daemon + scrcpy capture here)
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/carplay/prebuilt/catplay_android:$(TARGET_COPY_OUT_SYSTEM)/bin/catplay_android \
+    $(LOCAL_PATH)/carplay/prebuilt/scrcpy-server.jar:$(TARGET_COPY_OUT_SYSTEM)/etc/carplay/scrcpy-server.jar \
+    $(LOCAL_PATH)/carplay/init.carplay.rc:$(TARGET_COPY_OUT_SYSTEM)/etc/init/carplay.rc \
+    $(LOCAL_PATH)/carplay/Vendor_1209_Product_ca7a.idc:$(TARGET_COPY_OUT_VENDOR)/usr/idc/Vendor_1209_Product_ca7a.idc
+
 BUILD_FINGERPRINT := google/adt2/adt2:9/PTT5.190307.001/5360859:user/dev-keys

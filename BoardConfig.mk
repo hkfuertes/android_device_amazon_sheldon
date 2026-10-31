@@ -116,6 +116,8 @@ endif
 ifeq ($(TARGET_PRODUCT),lineage_sheldon_tab)
 TARGET_KERNEL_EXT_MODULE_ROOT := device/amazon/sheldon/carplay
 TARGET_KERNEL_EXT_MODULES := g_iphone:kbuild
+# catplay_android is a static musl binary, not a Soong module
+BUILD_BROKEN_ELF_PREBUILT_PRODUCT_COPY_FILES := true
 endif
 
 # Verified Boot

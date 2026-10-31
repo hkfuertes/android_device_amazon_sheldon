@@ -1,0 +1,26 @@
+# CarPlay (sheldon as the iPhone). Off by default: it takes the only USB port away from adb.
+#   adb tcpip 5555; adb connect <ip>; adb shell setprop persist.vendor.carplay.enable 1
+# Logs: adb logcat -s catplay_android (logwrapper tag)
+on property:persist.vendor.carplay.enable=1
+    insmod /vendor/lib/modules/iap2_char.ko
+    insmod /vendor/lib/modules/iap2_usb_bulk.ko
+    insmod /vendor/lib/modules/iap2_scan.ko
+    insmod /vendor/lib/modules/iap2_hid.ko
+    insmod /vendor/lib/modules/g_iphone.ko
+    # g_iphone switches the mtu3 role through debugfs usb/<udc>/mode
+    mount debugfs debugfs /sys/kernel/debug
+    # the car's NCM link is IPv6 link-local only
+    write /proc/sys/net/ipv6/conf/default/disable_ipv6 0
+    mkdir /data/vendor/carplay 0700 root root
+    start vendor.catplay
+
+on property:persist.vendor.carplay.enable=0
+    stop vendor.catplay
+    write /sys/class/iphone/remove default
+    write /config/usb_gadget/g1/UDC ${sys.usb.controller}
+
+service vendor.catplay /system/bin/logwrapper /system/bin/catplay_android
+    user root
+    group root
+    seclabel u:r:su:s0
+    disabled

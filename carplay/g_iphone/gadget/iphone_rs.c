@@ -3,6 +3,7 @@
 #include <linux/fs.h>
 #include <linux/fs_struct.h>
 #include <linux/slab.h>
+#include <linux/version.h>
 
 #include "iphone_rs.h"
 
@@ -13,7 +14,7 @@ struct iphone_rs_sysfs {
 	enum usb_role cached_role;
 };
 
-static const char *iphone_rs_sysfs_name(const char *udc_name)
+static const char * __maybe_unused iphone_rs_sysfs_name(const char *udc_name)
 {
 	if (!strcmp(udc_name, "2184200.usb"))
 		return "ci_hdrc.1";
@@ -60,7 +61,11 @@ static int iphone_rs_sysfs_set_role(struct iphone_rs *rs, enum usb_role role)
 		return PTR_ERR(file);
 	}
 	role_len = strlen(role_str);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
+	written = kernel_write(file, role_str, role_len, pos);
+#else
 	written = kernel_write(file, role_str, role_len, &pos);
+#endif
 	filp_close(file, NULL);
 	if (written < 0)
 		return written;
@@ -86,9 +91,20 @@ struct iphone_rs *iphone_rs_sysfs_create(const char *udc_name)
 	sysfs = kzalloc(sizeof(*sysfs), GFP_KERNEL);
 	if (!sysfs)
 		return ERR_PTR(-ENOMEM);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0)
+	/*
+	 * No usb_role class before 4.19. MediaTek mtu3 with "enable-manual-drd"
+	 * (sheldon) takes "host"/"device" on debugfs usb/<udc>/mode, which forces
+	 * IDDIG by register (works with the car already driving VBUS).
+	 * Needs debugfs mounted at /sys/kernel/debug.
+	 */
+	len = snprintf(sysfs->role_path, sizeof(sysfs->role_path),
+		       "/sys/kernel/debug/usb/%s/mode", udc_name);
+#else
 	len = snprintf(sysfs->role_path, sizeof(sysfs->role_path),
 		       "/sys/class/usb_role/%s-role-switch/role",
 		       iphone_rs_sysfs_name(udc_name));
+#endif
 	if (len < 0 || len >= sizeof(sysfs->role_path)) {
 		kfree(sysfs);
 		return ERR_PTR(-ENAMETOOLONG);

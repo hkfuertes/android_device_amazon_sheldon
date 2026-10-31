@@ -50,7 +50,7 @@ static int f_iphone_bind(struct usb_configuration *c, struct usb_function *f)
 	int intfs = iphone_intf_counts[config];
 	pr_debug("iPhone: adding %u intfs at config %u", intfs, config);
 
-	for (int i = 0; i < intfs; i++)
+	for (i = 0; i < intfs; i++)
 	{
 		int id = usb_interface_id(c, f);
 		if (id < 0)

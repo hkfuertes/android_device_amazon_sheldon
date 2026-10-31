@@ -236,7 +236,9 @@ int iphone_add(char *name)
 		NULL
 	};
 
-	for (struct device_attribute **attr = iphone_attrs; *attr; attr++) {
+	struct device_attribute **attr;
+
+	for (attr = iphone_attrs; *attr; attr++) {
 		ret = device_create_file(d->dev, *attr);
 		if (ret) {
 			pr_err("iPhone: failed to register sysfs attr '%s': %d",

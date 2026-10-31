@@ -112,6 +112,12 @@ else
 TARGET_SCREEN_DENSITY := 320
 endif
 
+# CarPlay display (tablet only): g_iphone USB gadget as external kernel modules
+ifeq ($(TARGET_PRODUCT),lineage_sheldon_tab)
+TARGET_KERNEL_EXT_MODULE_ROOT := device/amazon/sheldon/carplay
+TARGET_KERNEL_EXT_MODULES := g_iphone:kbuild
+endif
+
 # Verified Boot
 BOARD_AVB_ENABLE := false
 

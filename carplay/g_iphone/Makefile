@@ -42,3 +42,10 @@ rmmod:
 install: all
 	@if [ -L "$(DIST_DIR)/source" ]; then unlink "$(DIST_DIR)/source"; fi
 	$(MAKE) -C $(KDIR) M=$(MODULE_DIR) MO=$(DIST_DIR) modules_install
+
+# Android sheldon kernel (4.4): backfill newer APIs instead of patching upstream sources.
+ifeq ($(VERSION),4)
+# $(src) is relative to the kernel tree when built via Lineage (M=../../../device/...)
+GI_DIR := $(if $(filter /%,$(src)),$(src),$(srctree)/$(src))
+ccflags-y += -I$(GI_DIR)/compat/include -include $(GI_DIR)/compat/compat.h
+endif

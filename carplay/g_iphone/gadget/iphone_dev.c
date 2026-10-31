@@ -467,7 +467,9 @@ static int iphone_dev_driver_bind(struct usb_composite_dev *cdev)
 
 	int ret;
 
-	for (int i = 0; i < 4; i++)
+	int i;
+
+	for (i = 0; i < 4; i++)
 	{
 		ret = usb_add_config(cdev, &data->usb_configs[i].cfg, iphone_do_config);
 		if (ret)
@@ -592,7 +594,7 @@ struct iphone_dev_data *iphone_dev_alloc(struct device *owner_dev, char *udc_nam
 	}
 
 	/* init usb configs */
-	for (int i = 0; i < ARRAY_SIZE(iphone_configs) && i < 4; i++) {
+	for (i = 0; i < ARRAY_SIZE(iphone_configs) && i < 4; i++) {
 		data->usb_configs[i].g = &data->g;
 		data->usb_configs[i].cfg = iphone_configs[i];
 	}
@@ -646,7 +648,7 @@ static void iphone_dev_disable_runtime(struct iphone_dev_data *data)
 	if (data->runtime_stopped)
 		return;
 	WRITE_ONCE(data->runtime_stopped, true);
-	disable_work(&data->role_switch_work.work);
+	disable_delayed_work(&data->role_switch_work); /* 4.4: cancel timer too */
 	disable_delayed_work(&data->maintenance_work);
 	disable_work(&data->recovery_work);
 	disable_work(&data->status_notify_work);

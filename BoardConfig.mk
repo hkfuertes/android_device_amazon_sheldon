@@ -107,7 +107,7 @@ TARGET_OTA_ASSERT_DEVICE := sheldon,sheldonp
 TARGET_SCREEN_DENSITY := 320
 
 # CarPlay display (tablet only): g_iphone USB gadget as external kernel modules
-ifeq ($(TARGET_PRODUCT),lineage_sheldon_tab)
+ifeq ($(TARGET_PRODUCT),lineage_sheldon_phone)
 TARGET_KERNEL_EXT_MODULE_ROOT := device/amazon/sheldon/carplay
 TARGET_KERNEL_EXT_MODULES := g_iphone:kbuild hid_multitouch:kbuild
 # catplay_android is a static musl binary, not a Soong module

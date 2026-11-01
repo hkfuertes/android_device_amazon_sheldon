@@ -22,7 +22,7 @@ PRODUCT_PACKAGES += LatinIME
 PRODUCT_PACKAGE_OVERLAYS += vendor/lineage/overlay/dictionaries
 PRODUCT_ENFORCE_RRO_EXCLUDED_OVERLAYS += vendor/lineage/overlay/dictionaries
 
-PRODUCT_NAME := lineage_sheldon_tab
+PRODUCT_NAME := lineage_sheldon_phone
 PRODUCT_DEVICE := sheldon
 PRODUCT_MANUFACTURER := Amzn
 PRODUCT_BRAND := Fire

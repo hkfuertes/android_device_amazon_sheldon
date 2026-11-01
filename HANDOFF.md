@@ -4,12 +4,12 @@
 
 Producto **tablet** (UI de teléfono/tablet, sin Leanback/Android TV) junto al TV existente, que queda intacto.
 
-- `lineage_sheldon_tab.mk` (nuevo):
+- `lineage_sheldon_phone.mk` (nuevo):
   - Hereda `$(SRC_TARGET_DIR)/product/full_base.mk` + `vendor/lineage/config/common_full_tablet_wifionly.mk` (nombre verificado contra `vendor/lineage` branch `lineage-20.0`).
   - No hereda nada de `device/google/atv`, `device/lineage/atv`, `common_mini_tv` ni `gapps_tv`.
   - Sobrescribe tras heredar `device.mk`: `PRODUCT_CHARACTERISTICS := tablet`, `PRODUCT_AAPT_PREF_CONFIG := xhdpi` (device.mk pone `tv`/`tvdpi`; al ir después en el parse, gana el override).
   - Resto de vars igual que `lineage_sheldon.mk` (device `sheldon`, fingerprint adt2).
-- `AndroidProducts.mk`: registra `lineage_sheldon_tab.mk` + lunch `lineage_sheldon_tab-userdebug`.
+- `AndroidProducts.mk`: registra `lineage_sheldon_phone.mk` + lunch `lineage_sheldon_phone-userdebug`.
 - `device.mk`, `lineage_sheldon.mk` (TV), `BoardConfig.mk`: **sin cambios**.
 
 ## Repos (branch `lineage-20.0`, ignorar `lineage-22.1`)
@@ -29,7 +29,7 @@ repo init -u https://github.com/LineageOS/android.git -b lineage-20.0
 # local_manifests de amazon-oss, con device/amazon/sheldon apuntando a este fork, rama lineage-20.0-tablet
 repo sync -c -j8
 source build/envsetup.sh
-breakfast lineage_sheldon_tab-userdebug
+breakfast lineage_sheldon_phone-userdebug
 brt   # o mka bacon
 ```
 

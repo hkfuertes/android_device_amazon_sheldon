@@ -242,3 +242,8 @@ Sin probar en dispositivo.
 - `carplay-check.sh arm` (ahora reinicia y verifica): tras reboot faltaba la regla `oif usb0 lookup main`. Al arrancar, los triggers de props persist corren antes de netd, y netd vacía las reglas ip al iniciar. Movida al trigger boot_completed && enable=1 (cubre también activar en caliente).
 - Ese run mostró además ROM vieja en el stick (tablet, sin 540p): no tenía flasheada la build phone.
 - Zip sha256 e09b1045...ee35. Sin probar.
+
+## 2026-11-01 21:10 — producto renombrado a lineage_sheldon_phone
+- lineage_sheldon_tab.mk → lineage_sheldon_phone.mk (PRODUCT_NAME, AndroidProducts, ifeq de BoardConfig, HANDOFF). Contenedor los20 recreado con `breakfast lineage_sheldon_phone-userdebug`.
+- Zip ahora: lineage-20.0-20261101-UNOFFICIAL-sheldon_phone.zip, sha256 4976b6f9...f889. Sin probar.
+- Overlays *SheldonTab y tablet_core_hardware.xml mantienen el nombre (solo nombres internos).

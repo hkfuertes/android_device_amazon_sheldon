@@ -186,3 +186,14 @@ netd pone `accept_ra_rt_table=-1000` y el kernel Android 4.4 (addrconf_rt_table)
 de cada iface en la tabla 1000+ifindex (usb0=12 → 1012). Arreglo: patch 0002 en catplay pone
 `conf/<iface>/accept_ra_rt_table=0` antes de levantar la NCM → ruta en main. Además el daemon ahora arranca
 con `sys.boot_completed=1` (antes a los 9 s, sin system_server para wm/scrcpy).
+
+## 2026-11-01 — ¡FUNCIONA! Quinta prueba: CarPlay con Android en el coche, touch OK
+Coche LG ULC4.5.LAN5900WR0: display 800x480@60, 176x99 mm (~115 dpi reales), 3 HID (Touch Screen 0..800/0..480,
+Telephony, Button). Sesión limpia ~45 s (hasta cortar corriente): encoder HW MTK, ~10 fps medios (solo envía
+cuando cambia la pantalla), 9 keyframes, audio MainAudio con feedback del coche, sin errores/crash.
+Los ENETUNREACH del log son de arranques anteriores (antes del patch 0002).
+Formatos del coche: MainAudio Default/Telephony entrada/salida PCM 8/16/24/48k mono (+48k estéreo salida),
+SpeechRecognition, Media/Alert 48k estéreo, AltAudio 48k estéreo.
+Ajuste: el daemon pone `wm density` = persist.vendor.carplay.density (def. 160 → 800x480 dp, UI móvil apaisada)
+y lo resetea al desconectar.
+Pendiente de verificar: audio audible en el coche, micrófono (REC/Telephony), Siri→VOICE_ASSIST, modo noche.

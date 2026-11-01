@@ -441,6 +441,9 @@ struct Android {
 impl Android {
     fn start(w: u32, h: u32, fps: u32, encoder: &str) -> io::Result<Self> {
         sh(&["wm", "size", &format!("{w}x{h}")]);
+        // 160 on the LG 800x480 (176x99 mm, ~115 real dpi) = 800x480 dp: phone-style landscape UI,
+        // 48dp touch targets ~10 mm. 120 would give tablet UI (sw640) but too small to use while driving.
+        sh(&["wm", "density", &prop("persist.vendor.carplay.density", "160")]);
         sh(&["svc", "power", "stayon", "true"]);
         sh(&["input", "keyevent", "KEYCODE_WAKEUP"]);
 
@@ -494,6 +497,7 @@ impl Drop for Android {
         let _ = self.scrcpy.kill();
         let _ = self.scrcpy.wait();
         sh(&["wm", "size", "reset"]);
+        sh(&["wm", "density", "reset"]);
         sh(&["svc", "power", "stayon", "false"]);
     }
 }

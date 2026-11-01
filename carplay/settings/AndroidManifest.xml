@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.amazon.sheldon.carplay.settings">
+    <application android:label="@string/title" android:icon="@drawable/ic_car">
+        <!-- Settings only loads switch tiles from system apps; the permission keeps other apps from flipping it -->
+        <provider android:name=".CarPlaySwitches"
+            android:authorities="com.amazon.sheldon.carplay.settings.switches"
+            android:exported="true"
+            android:permission="android.permission.WRITE_SECURE_SETTINGS">
+            <intent-filter>
+                <action android:name="com.android.settings.action.EXTRA_SETTINGS"/>
+            </intent-filter>
+        </provider>
+        <service android:name=".CarPlayTile"
+            android:exported="true"
+            android:label="@string/qs_label"
+            android:icon="@drawable/ic_car"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE"/>
+            </intent-filter>
+            <meta-data android:name="android.service.quicksettings.ACTIVE_TILE" android:value="false"/>
+        </service>
+    </application>
+</manifest>

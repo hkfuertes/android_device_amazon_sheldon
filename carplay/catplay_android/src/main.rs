@@ -57,6 +57,9 @@ const UHID_PRODUCT: u32 = 0xca7a;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
+    if std::env::var_os("CATPLAY_NAME").is_none() {
+        unsafe { std::env::set_var("CATPLAY_NAME", prop("persist.vendor.carplay.name", "Fire TV Stick")) };
+    }
     if std::env::var_os("RUST_LOG").is_none() {
         unsafe { std::env::set_var("RUST_LOG", prop("persist.vendor.carplay.log", "debug")) };
     }
@@ -444,6 +447,9 @@ impl Android {
         // 160 on the LG 800x480 (176x99 mm, ~115 real dpi) = 800x480 dp: phone-style landscape UI,
         // 48dp touch targets ~10 mm. 120 would give tablet UI (sw640) but too small to use while driving.
         sh(&["wm", "density", &prop("persist.vendor.carplay.density", "160")]);
+        // car screen is landscape: portrait-only apps get letterboxed instead of rotating the display
+        sh(&["wm", "user-rotation", "lock", "0"]);
+        sh(&["wm", "set-ignore-orientation-request", "true"]);
         sh(&["svc", "power", "stayon", "true"]);
         sh(&["input", "keyevent", "KEYCODE_WAKEUP"]);
 
@@ -498,6 +504,8 @@ impl Drop for Android {
         let _ = self.scrcpy.wait();
         sh(&["wm", "size", "reset"]);
         sh(&["wm", "density", "reset"]);
+        sh(&["wm", "set-ignore-orientation-request", "false"]);
+        sh(&["wm", "user-rotation", "free"]);
         sh(&["svc", "power", "stayon", "false"]);
     }
 }

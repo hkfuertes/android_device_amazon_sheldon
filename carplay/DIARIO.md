@@ -197,3 +197,15 @@ SpeechRecognition, Media/Alert 48k estéreo, AltAudio 48k estéreo.
 Ajuste: el daemon pone `wm density` = persist.vendor.carplay.density (def. 160 → 800x480 dp, UI móvil apaisada)
 y lo resetea al desconectar.
 Pendiente de verificar: audio audible en el coche, micrófono (REC/Telephony), Siri→VOICE_ASSIST, modo noche.
+
+## 2026-11-01 — nombre, horizontal, interruptor en Ajustes
+- Nombre en el coche: build-daemon.sh reemplaza "iPhone SIM" (DeviceInformationUpdate), "iPhone" (AirPlay
+  InitialSetup) y "CatPlay" (iPod name) por $CATPLAY_NAME; el daemon lo toma de persist.vendor.carplay.name
+  (def. "Fire TV Stick"). Modelo iPhone8.1 e instancias bonjour sin tocar.
+- Durante la sesión: `wm user-rotation lock 0` + `wm set-ignore-orientation-request true` (apps verticales con
+  bandas), se restauran (free/false) al desconectar.
+- carplay/settings → CarPlaySettings (/system/app, cert platform): interruptor inyectado en Ajustes →
+  Dispositivos conectados (SwitchesProvider, categoría ia.device, protegido con WRITE_SECURE_SETTINGS) y tile
+  de Ajustes rápidos. Ambos cambian persist.vendor.carplay.enable (SELinux permisivo; en enforcing haría falta
+  regla set_prop).
+Sin probar en dispositivo.

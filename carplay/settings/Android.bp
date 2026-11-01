@@ -1,0 +1,10 @@
+// CarPlay on/off: switch in Settings > Connected devices + Quick Settings tile.
+// Both just flip persist.vendor.carplay.enable (init.carplay.rc does the rest).
+android_app {
+    name: "CarPlaySettings",
+    srcs: ["src/**/*.java"],
+    resource_dirs: ["res"],
+    static_libs: ["SettingsLibTile"],
+    platform_apis: true, // SystemProperties.set
+    certificate: "platform",
+}

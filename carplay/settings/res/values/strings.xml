@@ -1,0 +1,5 @@
+<resources>
+    <string name="title">CarPlay (car mode)</string>
+    <string name="summary">USB acts as an iPhone for the car; adb only over Wi-Fi</string>
+    <string name="qs_label">CarPlay</string>
+</resources>

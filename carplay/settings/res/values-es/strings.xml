@@ -1,0 +1,5 @@
+<resources>
+    <string name="title">CarPlay (modo coche)</string>
+    <string name="summary">El USB hace de iPhone para el coche; adb solo por WiFi</string>
+    <string name="qs_label">CarPlay</string>
+</resources>

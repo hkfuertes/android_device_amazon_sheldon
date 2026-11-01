@@ -18,6 +18,13 @@ git -C "$SRC" checkout -q -f "$CATPLAY_REV"
 for p in "$HERE"/catplay_android/patches/*.patch; do git -C "$SRC" apply "$p"; done
 # Android has ip/modprobe/rmmod in /system/bin, not /sbin
 grep -rl '"/sbin/' "$SRC/usb" --include=*.rs | xargs sed -i 's|"/sbin/|"/system/bin/|g'
+# Name shown by the car: from $CATPLAY_NAME (daemon sets it from persist.vendor.carplay.name).
+# Model/bonjour instance names stay iPhone-ish so the car still treats us as an iPhone.
+N='std::env::var("CATPLAY_NAME").unwrap_or("Fire TV Stick".into())'
+sed -i "s|device_name: Some(\"iPhone SIM\".into())|device_name: Some($N)|; s|i_pod_name: \"CatPlay\".into()|i_pod_name: $N|" \
+    "$SRC/catplay_carplay_tx_gadget/src/carplay_client_session.rs"
+sed -i "s|name: \"iPhone\".into(),|name: $N,|" "$SRC/carplay/catplay_carplay/src/carplay_tx/transmitter.rs"
+[ "$(cat "$SRC/catplay_carplay_tx_gadget/src/carplay_client_session.rs" "$SRC/carplay/catplay_carplay/src/carplay_tx/transmitter.rs" | grep -o CATPLAY_NAME | wc -l)" = 3 ] || { echo "name sed failed"; exit 1; }
 rm -rf "$SRC/catplay_android"
 cp -r "$HERE/catplay_android" "$SRC/catplay_android"
 rm -rf "$SRC/catplay_android/Dockerfile" "$SRC/catplay_android/patches"

@@ -61,7 +61,7 @@ async fn main() {
         unsafe { std::env::set_var("CATPLAY_NAME", prop("persist.vendor.carplay.name", "Fire TV Stick")) };
     }
     if std::env::var_os("RUST_LOG").is_none() {
-        unsafe { std::env::set_var("RUST_LOG", prop("persist.vendor.carplay.log", "debug")) };
+        unsafe { std::env::set_var("RUST_LOG", prop("persist.vendor.carplay.log", "error,catplay_android=info")) };
     }
     catplay_tracing::logger::setup_prod_logger();
 
@@ -172,6 +172,7 @@ async fn run_session(tx: TeardownGuard<AirPlayTransmitterProxyRef>) -> Res<()> {
     });
     thread::spawn(move || {
         let mut pcm = Vec::new();
+        let mut meter = Meter::new("to car");
         while let Ok(p) = read_packet(&mut audio_sock) {
             if p.config || !audio_flag.load(Ordering::Relaxed) {
                 continue;
@@ -186,6 +187,7 @@ async fn run_session(tx: TeardownGuard<AirPlayTransmitterProxyRef>) -> Res<()> {
             } else {
                 pcm.extend(s16.map(|x| x as i16));
             }
+            meter.feed(&pcm);
             if let Some(s) = audio_sink.lock().unwrap().as_mut() {
                 s.write(&pcm);
             }
@@ -359,8 +361,10 @@ impl AudioPlayer for MicPlayer {
         thread::spawn(move || {
             let mut buf = [0i16; 480]; // 20 ms @ 24 kHz
             let mut next = Instant::now();
+            let mut meter = Meter::new("car mic");
             while run.load(Ordering::Relaxed) {
                 source.read(&mut buf);
+                meter.feed(&buf);
                 let bytes: Vec<u8> = buf.iter().flat_map(|s| s.to_le_bytes()).collect();
                 if stdin.lock().unwrap().write_all(&bytes).is_err() {
                     break;
@@ -372,6 +376,28 @@ impl AudioPlayer for MicPlayer {
     }
     fn stop(&mut self, _drain: bool) {
         self.run.store(false, Ordering::Relaxed);
+    }
+}
+
+/// Logs the peak level every 5 s, so logs tell silence from sound without a human listening.
+struct Meter {
+    what: &'static str,
+    peak: i32,
+    since: Instant,
+}
+
+impl Meter {
+    fn new(what: &'static str) -> Self {
+        Self { what, peak: 0, since: Instant::now() }
+    }
+    fn feed(&mut self, pcm: &[i16]) {
+        self.peak = pcm.iter().fold(self.peak, |m, &x| m.max((x as i32).abs()));
+        if self.since.elapsed() >= Duration::from_secs(5) {
+            let db = if self.peak == 0 { -99.0 } else { 20.0 * (self.peak as f32 / 32768.0).log10() };
+            info!("audio {}: peak {:.0} dBFS", self.what, db);
+            self.peak = 0;
+            self.since = Instant::now();
+        }
     }
 }
 

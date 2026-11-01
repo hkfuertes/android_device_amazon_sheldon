@@ -48,3 +48,8 @@ service vendor.catplay /system/bin/logwrapper /system/bin/catplay_android
     group root
     seclabel u:r:su:s0
     disabled
+
+# audio test track (ponytail: drop once CarPlay audio is known-good). Copied through the FUSE path as
+# shell so MediaProvider indexes it and it shows up in the Music app.
+on property:sys.boot_completed=1
+    exec_background u:r:su:s0 shell shell -- /system/bin/sh -c "mkdir -p /sdcard/Music && [ -f /sdcard/Music/jazz_in_paris.mp3 ] || cp /system/media/carplay/jazz_in_paris.mp3 /sdcard/Music/"

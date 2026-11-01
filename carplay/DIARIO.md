@@ -209,3 +209,14 @@ Pendiente de verificar: audio audible en el coche, micrófono (REC/Telephony), S
   de Ajustes rápidos. Ambos cambian persist.vendor.carplay.enable (SELinux permisivo; en enforcing haría falta
   regla set_prop).
 Sin probar en dispositivo.
+
+## 2026-11-01 — sexta prueba: vídeo 17-20 fps en movimiento, sin audio
+- fps: el daemon seguía en RUST_LOG=debug (~270 líneas/s + hexdumps; logpersist ~100 KB/s a eMMC) y el
+  MTK encoder tenía 7-8 buffers de salida pendientes → cuello en el consumo, no en el encoder.
+  Ahora por defecto `error,catplay_android=info` (prop persist.vendor.carplay.log sigue mandando).
+- audio: el coche nos da resourceID 2 (MainAudio) entity 1, el r_submix "0" de scrcpy se abre y se envían
+  48k estéreo sin cortes. El mic del coche entra (Grabadora → swap a Telephony y vuelta). La única
+  reproducción fue esa grabación, así que la prueba no distingue salida vs mic.
+  Añadido medidor: cada 5 s `audio to car: peak N dBFS` y `audio car mic: peak N dBFS` (-99 = silencio).
+- Canción de prueba: carplay/media/jazz_in_paris.mp3 (YouTube Audio Library, de AOSP samples) →
+  /system/media/carplay, copiada a /sdcard/Music al arrancar (aparece en Música).

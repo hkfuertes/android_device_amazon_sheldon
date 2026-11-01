@@ -1,0 +1,12 @@
+--- a/usb/catplay_iap2_usb/src/ncm_helper.rs
++++ b/usb/catplay_iap2_usb/src/ncm_helper.rs
+@@ -119,6 +119,9 @@
+     }
+ 
+     pub fn configure_for_carplay(interface: &str, ip: &str) -> GadgetResult<()> {
++        // Android: netd sets accept_ra_rt_table=-1000, which puts this iface's fe80::/64 route into
++        // table 1000+ifindex; keep it in main (init adds "oif <iface> lookup main").
++        Self::set_ipv6_param(interface, "conf", "accept_ra_rt_table", "0")?;
+         Self::disable_ipv6_ra(interface)?;
+         Self::disable_ipv6_dad(interface)?;
+         Self::fix_ipv6_neigh_timeouts(interface)?;

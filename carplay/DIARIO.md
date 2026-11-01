@@ -179,3 +179,10 @@ catplay) → Bonjour encuentra `CarPlay._airplay._tcp` del coche en [fe80::…%u
 Causa: el policy routing de Android (netd) no tiene regla "lookup main"; la ruta fe80::/64 de usb0 está en
 main → todo tráfico saliente por usb0 acaba en la regla 32000 unreachable (el multicast mDNS sí pasaba).
 Arreglo: carplay.rc añade `ip -6 rule add oif usb0 lookup main pref 5000` al activar (y la quita al desactivar).
+
+## 2026-11-01 — cuarta prueba: mismo ENETUNREACH
+La regla `oif usb0 lookup main` sí se aplicó (después de netd), pero la ruta fe80::/64 de usb0 no está en main:
+netd pone `accept_ra_rt_table=-1000` y el kernel Android 4.4 (addrconf_rt_table) mete las rutas de prefijo
+de cada iface en la tabla 1000+ifindex (usb0=12 → 1012). Arreglo: patch 0002 en catplay pone
+`conf/<iface>/accept_ra_rt_table=0` antes de levantar la NCM → ruta en main. Además el daemon ahora arranca
+con `sys.boot_completed=1` (antes a los 9 s, sin system_server para wm/scrcpy).

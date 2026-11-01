@@ -1,12 +1,20 @@
 --- a/usb/catplay_iap2_usb/src/ncm_helper.rs
 +++ b/usb/catplay_iap2_usb/src/ncm_helper.rs
-@@ -119,6 +119,9 @@
+@@ -119,6 +119,17 @@
      }
  
      pub fn configure_for_carplay(interface: &str, ip: &str) -> GadgetResult<()> {
 +        // Android: netd sets accept_ra_rt_table=-1000, which puts this iface's fe80::/64 route into
-+        // table 1000+ifindex; keep it in main (init adds "oif <iface> lookup main").
++        // table 1000+ifindex; keep it in main.
 +        Self::set_ipv6_param(interface, "conf", "accept_ra_rt_table", "0")?;
++        // ...and netd's policy routing has no "lookup main" rule (ENETUNREACH to the car's fe80::).
++        // Added here, per iface, once it exists: netd flushes ip rules when it starts at boot.
++        for op in ["del", "add"] {
++            let _ = Command::new("/system/bin/ip")
++                .args(["-6", "rule", op, "oif", interface, "lookup", "main", "pref", "5000"])
++                .stderr(std::process::Stdio::null())
++                .status();
++        }
          Self::disable_ipv6_ra(interface)?;
          Self::disable_ipv6_dad(interface)?;
          Self::fix_ipv6_neigh_timeouts(interface)?;

@@ -247,3 +247,8 @@ Sin probar en dispositivo.
 - lineage_sheldon_tab.mk → lineage_sheldon_phone.mk (PRODUCT_NAME, AndroidProducts, ifeq de BoardConfig, HANDOFF). Contenedor los20 recreado con `breakfast lineage_sheldon_phone-userdebug`.
 - Zip ahora: lineage-20.0-20261101-UNOFFICIAL-sheldon_phone.zip, sha256 4976b6f9...f889. Sin probar.
 - Overlays *SheldonTab y tablet_core_hardware.xml mantienen el nombre (solo nombres internos).
+
+## 2026-11-01 21:50 — regla usb0 desde el daemon; setupwizard disable-user
+- La regla en boot_completed tampoco sobrevivió el reboot. Ahora la pone el daemon (patch 0002) en configure_for_carplay, cuando la interfaz NCM del coche ya existe (vale para usb0/usb1). La del rc se queda como respaldo.
+- `pm disable` falla desde shell/root (PMS solo permite DISABLED_USER): carplay-check.sh usa `pm disable-user --user 0`. La regla usb0 en el check pasa a INFO (sin coche no hay usb0).
+- Zip sheldon_phone sha256 3c801ca6...7682. Sin probar.

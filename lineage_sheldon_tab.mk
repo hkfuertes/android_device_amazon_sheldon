@@ -45,6 +45,9 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/permissions/tablet_core_hardware.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/tablet_core_hardware.xml
 
 # CarPlay: sheldon plays the iPhone (g_iphone modules via BoardConfig, daemon + scrcpy capture here)
+# ponytail: logcat (+kernel) persisted to /data/misc/logd so car tests survive the power cut;
+# drop once CarPlay works ("adb shell setprop persist.logd.logpersistd stop" turns it off at runtime)
+PRODUCT_SYSTEM_PROPERTIES += persist.logd.logpersistd=logcatd
 PRODUCT_PACKAGES += CarplayMic
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/carplay/prebuilt/catplay_android:$(TARGET_COPY_OUT_SYSTEM)/bin/catplay_android \

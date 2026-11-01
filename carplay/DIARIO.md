@@ -152,3 +152,12 @@ Todo OK con `carplay-check.sh` (en /mnt/DATA/los-build, fuera de git por la clav
 - `=0`: g1 recupera el UDC (adb USB vuelve). Los .ko quedan cargados (no hay rmmod; inofensivo).
 - SELinux avc module_load denegado pero permissive=1: OK.
 Pendiente: coche (cambio de rol a host, NCM, sesión CarPlay, vídeo/touch/audio/mic).
+
+## 2026-11-01 — coche: "compruebe el iPhone", sin logs
+- El coche reconoce el gadget como iPhone pero no llega a CarPlay. No hubo logs (logpersist apagado, y el stick
+  pierde corriente al desenchufarlo del coche). Tampoco había clave adb guardada → `unauthorized` por WiFi.
+- init.carplay.rc: con CarPlay activo se pone `sys.usb.config none` y adbd arranca solo TCP (antes init/adbd
+  reintentaban cada segundo enganchar g1 al UDC → EBUSY en bucle, y riesgo de robar el UDC durante el cambio de rol).
+- Daemon: nivel de log `debug` por defecto (`persist.vendor.carplay.log` para cambiarlo).
+- ROM: `persist.logd.logpersistd=logcatd` de serie → logcat+kernel en /data/misc/logd (quitar cuando funcione).
+- Recuperar logs: /mnt/DATA/los-build/carplay-pull-logs.sh (recovery → Enable ADB; sube el tgz a dungeon).

@@ -13,12 +13,26 @@ on property:persist.vendor.carplay.enable=1
     # the car's NCM link is IPv6 link-local only
     write /proc/sys/net/ipv6/conf/default/disable_ipv6 0
     mkdir /data/vendor/carplay 0700 root root
+    # USB adb off, otherwise init + adbd retry binding g1 to the UDC every second (EBUSY loop)
+    setprop sys.usb.config none
     start vendor.catplay
+
+# also catches boot (persist.sys.usb.config=adb) with CarPlay left enabled
+on property:sys.usb.config=adb && property:persist.vendor.carplay.enable=1
+    setprop sys.usb.config none
+
+# runs after the stock "sys.usb.config=none" action (which stops adbd): without ep0, adbd is TCP only
+on property:sys.usb.config=none && property:persist.vendor.carplay.enable=1
+    umount /dev/usb-ffs/adb
+    start adbd
 
 on property:persist.vendor.carplay.enable=0
     stop vendor.catplay
     write /sys/class/iphone/remove default
-    write /config/usb_gadget/g1/UDC ${sys.usb.controller}
+    stop adbd
+    mount functionfs adb /dev/usb-ffs/adb uid=2000,gid=2000
+    # ponytail: back to plain adb; UsbDeviceManager re-applies mtp etc. if the user had them
+    setprop sys.usb.config adb
 
 service vendor.catplay /system/bin/logwrapper /system/bin/catplay_android
     user root

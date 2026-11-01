@@ -58,7 +58,7 @@ const UHID_PRODUCT: u32 = 0xca7a;
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     if std::env::var_os("RUST_LOG").is_none() {
-        unsafe { std::env::set_var("RUST_LOG", "info") };
+        unsafe { std::env::set_var("RUST_LOG", prop("persist.vendor.carplay.log", "debug")) };
     }
     catplay_tracing::logger::setup_prod_logger();
 

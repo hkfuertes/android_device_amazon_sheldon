@@ -1,0 +1,16 @@
+--- a/usb/catplay_iap2_usb_host/src/phone_gadget_driver.rs
++++ b/usb/catplay_iap2_usb_host/src/phone_gadget_driver.rs
+@@ -20,7 +20,12 @@
+ }
+ 
+ fn verify_function(udc: &str, path: &str) -> GadgetResult<()> {
+-    let function = read_as_string(path).map_err(|e| GadgetError::FailedUdcStatusCheck(e.into()))?;
++    let function = match read_as_string(path) {
++        // Linux < 5.x has no /sys/class/udc/<udc>/function: skip this sanity check
++        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
++        r => r,
++    }
++    .map_err(|e| GadgetError::FailedUdcStatusCheck(e.into()))?;
+     let function = function.trim();
+ 
+     if !function.is_empty() && !function.starts_with("iphone") {

@@ -15,9 +15,10 @@ export LIBOPUS_STATIC=1
 git -C "$SRC" fetch -q origin "$CATPLAY_REV" 2>/dev/null || true
 git -C "$SRC" checkout -q -f "$CATPLAY_REV"
 
+for p in "$HERE"/catplay_android/patches/*.patch; do git -C "$SRC" apply "$p"; done
 rm -rf "$SRC/catplay_android"
 cp -r "$HERE/catplay_android" "$SRC/catplay_android"
-rm -f "$SRC/catplay_android/Dockerfile"
+rm -rf "$SRC/catplay_android/Dockerfile" "$SRC/catplay_android/patches"
 grep -q '"catplay_android"' "$SRC/Cargo.toml" || sed -i 's|^members = \[|members = [\n    "catplay_android",|' "$SRC/Cargo.toml"
 
 cd "$SRC"

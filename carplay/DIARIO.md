@@ -141,3 +141,14 @@ Arquitectura final (más simple que el plan original):
 1. `adb shell catplay_android --selftest 800x480` → debe acabar en `selftest: PASS` (dice qué encoder vale).
 2. `adb tcpip 5555; adb connect <ip>; adb shell setprop persist.vendor.carplay.enable 1`, enchufar al coche,
    `adb logcat -s catplay_android`.
+
+## 2026-11-01 — primera prueba en el sheldon (sin coche), ROM sha256 d1cf3834…
+Todo OK con `carplay-check.sh` (en /mnt/DATA/los-build, fuera de git por la clave WiFi):
+- UDC `11271000.usb`, ruta de cambio de rol `/sys/kernel/debug/usb/11271000.usb/mode` existe (mtu3 manual drd).
+- Selftest PASS con el **encoder HW MTK** (`OMX.MTK.VIDEO.ENCODER.AVC`, SPS 67 42 00 29 = Baseline 4.1); audio llega.
+- `persist.vendor.carplay.enable=1`: 6 módulos cargados, g_iphone bind con 4 configs, pullup D+, el daemon llega a
+  `WaitingForUsbAccessory` → `ReceivedEnable`. El PC (tollan) como host lo enumeró como iPhone (config #1 PTP) y le
+  mandó la petición Apple de carga 0x40/0x40 (2900 mA) → **el gadget se ve como iPhone desde un host real**.
+- `=0`: g1 recupera el UDC (adb USB vuelve). Los .ko quedan cargados (no hay rmmod; inofensivo).
+- SELinux avc module_load denegado pero permissive=1: OK.
+Pendiente: coche (cambio de rol a host, NCM, sesión CarPlay, vídeo/touch/audio/mic).

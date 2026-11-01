@@ -506,7 +506,9 @@ impl Android {
         if !encoder.is_empty() {
             cmd.arg(format!("video_encoder={encoder}"));
         }
-        Ok(Self { scrcpy: cmd.spawn()? })
+        let scrcpy = cmd.spawn()?;
+        screen(false);
+        Ok(Self { scrcpy })
     }
 
     /// scrcpy accepts video first, then audio, on the same abstract socket.
@@ -528,6 +530,7 @@ impl Drop for Android {
     fn drop(&mut self) {
         let _ = self.scrcpy.kill();
         let _ = self.scrcpy.wait();
+        screen(true);
         sh(&["wm", "size", "reset"]);
         sh(&["wm", "density", "reset"]);
         sh(&["wm", "set-ignore-orientation-request", "false"]);
@@ -554,6 +557,23 @@ fn as_shell(cmd: &mut Command) {
 
 fn night_mode(on: bool) {
     thread::spawn(move || sh(&["cmd", "uimode", "night", if on { "yes" } else { "no" }]));
+}
+
+/// HDMI panel off during the session: no TV is attached in the car, and composing that 1080p plane every
+/// frame is what caps the car stream at ~20 fps. persist.vendor.carplay.screen_off=0 keeps it on.
+/// ponytail: if the daemon dies mid-session the panel stays off until the next sleep/wake.
+fn screen(on: bool) {
+    if prop("persist.vendor.carplay.screen_off", "1") != "1" {
+        return;
+    }
+    let mut cmd = Command::new("/system/bin/app_process");
+    cmd.env("CLASSPATH", MIC_JAR)
+        .args(["/", "com.amazon.sheldon.carplay.Screen", if on { "on" } else { "off" }]);
+    as_shell(&mut cmd);
+    match cmd.status() {
+        Ok(s) if s.success() => info!("HDMI panel {}", if on { "on" } else { "off" }),
+        r => warn!("screen {on}: {r:?}"),
+    }
 }
 
 fn sh(args: &[&str]) {

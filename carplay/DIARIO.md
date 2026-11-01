@@ -227,3 +227,8 @@ Sin probar en dispositivo.
 - ro.surface_flinger.max_graphics_width/height=960x540 (vendor): SF compone el primario a 540p y HWC escala. Global; la salida TV se ve más blanda.
 - mp3: exec de init no ve /sdcard (exit 1); ahora copia como media_rw a /data/media/0/Music (aparece en el siguiente escaneo/arranque).
 - Zip sha256 f73fa83e...777a. Sin probar.
+
+## 2026-11-01 19:50 — panel HDMI apagado durante la sesión
+- CarplayMic.jar gana `com.amazon.sheldon.carplay.Screen off|on` (SurfaceControl.setDisplayPowerMode en los displays físicos, como scrcpy --turn-screen-off). El daemon lo llama al arrancar captura y al cerrarla.
+- persist.vendor.carplay.screen_off=0 lo desactiva (por si el HWC de MTK se porta mal). Si el daemon muere en sesión, el panel vuelve con un ciclo sleep/wake.
+- Zip sha256 560a357b...1d57. Sin probar.

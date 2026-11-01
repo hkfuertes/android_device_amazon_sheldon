@@ -1,4 +1,4 @@
-// Car microphone -> Android apps. Run by catplay_android via app_process as shell (see Mic.java).
+// Car microphone -> Android apps (Mic) + HDMI panel power (Screen). Run by catplay_android via app_process as shell.
 java_library {
     name: "CarplayMic",
     srcs: ["src/**/*.java"],

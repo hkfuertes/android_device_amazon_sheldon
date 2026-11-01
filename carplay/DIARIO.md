@@ -170,3 +170,12 @@ cambio de rol (0x51) → ReceivedRoleSwitch → mtu3 pasa a host → coche enume
 Arreglo: build-daemon.sh reescribe `"/sbin/` → `"/system/bin/` en catplay (ip, modprobe, rmmod).
 Densidad vuelta a 320 (as-is) a petición del usuario.
 Siguiente punto de fallo posible: bonjour/mDNS en usb0 (puerto 5353 vs mdnsd de Android) y la sesión iAP2/AirPlay.
+
+## 2026-11-01 — tercera prueba en coche: sesión iAP2 completa, falla al conectar AirPlay
+Coche: LG "Media Display" (ULC…Series, hostname imx6dlsabrebavn). Ahora sí: cambio de rol → usb0 con IP
+fe80::…def0 → iAP2 identificación aceptada → autenticación OK → el coche muestra "iPhone SIM" (nombre fijo en
+catplay) → Bonjour encuentra `CarPlay._airplay._tcp` del coche en [fe80::…%usb0]:7000 → invitación →
+`Connecting` → **ENETUNREACH** al abrir el TCP hacia el coche → coche: "CarPlay no está disponible".
+Causa: el policy routing de Android (netd) no tiene regla "lookup main"; la ruta fe80::/64 de usb0 está en
+main → todo tráfico saliente por usb0 acaba en la regla 32000 unreachable (el multicast mDNS sí pasaba).
+Arreglo: carplay.rc añade `ip -6 rule add oif usb0 lookup main pref 5000` al activar (y la quita al desactivar).

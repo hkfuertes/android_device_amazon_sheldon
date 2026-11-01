@@ -13,6 +13,11 @@ on property:persist.vendor.carplay.enable=1
     # the car's NCM link is IPv6 link-local only
     write /proc/sys/net/ipv6/conf/default/disable_ipv6 0
     mkdir /data/vendor/carplay 0700 root root
+    # Android policy routing has no "lookup main" rule, so connecting to the car's fe80::%usb0 gave
+    # ENETUNREACH. Send usb0-bound traffic to main (where the kernel puts the link-local route).
+    # ponytail: assumes the car NCM iface is usb0 (seen on the LG unit); add usb1 if another car differs
+    exec u:r:su:s0 root root -- /system/bin/ip -6 rule del oif usb0 lookup main pref 5000
+    exec u:r:su:s0 root root -- /system/bin/ip -6 rule add oif usb0 lookup main pref 5000
     # USB adb off, otherwise init + adbd retry binding g1 to the UDC every second (EBUSY loop)
     setprop sys.usb.config none
     start vendor.catplay
@@ -28,6 +33,7 @@ on property:sys.usb.config=none && property:persist.vendor.carplay.enable=1
 
 on property:persist.vendor.carplay.enable=0
     stop vendor.catplay
+    exec u:r:su:s0 root root -- /system/bin/ip -6 rule del oif usb0 lookup main pref 5000
     write /sys/class/iphone/remove default
     stop adbd
     mount functionfs adb /dev/usb-ffs/adb uid=2000,gid=2000

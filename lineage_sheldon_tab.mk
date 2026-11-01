@@ -47,6 +47,12 @@ PRODUCT_COPY_FILES += \
 # ponytail: logcat (+kernel) persisted to /data/misc/logd so car tests survive the power cut;
 # drop once CarPlay works ("adb shell setprop persist.logd.logpersistd stop" turns it off at runtime)
 PRODUCT_SYSTEM_PROPERTIES += persist.logd.logpersistd=logcatd
+
+# GPU composes the 1080p HDMI plane + the CarPlay copy every frame (~20fps cap). Compose the primary
+# at 540p and let HWC scale it up. ponytail: global (TV output gets softer); raise/drop if not in a car.
+PRODUCT_VENDOR_PROPERTIES += \
+    ro.surface_flinger.max_graphics_width=960 \
+    ro.surface_flinger.max_graphics_height=540
 PRODUCT_PACKAGES += CarplayMic CarPlaySettings
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/carplay/prebuilt/catplay_android:$(TARGET_COPY_OUT_SYSTEM)/bin/catplay_android \

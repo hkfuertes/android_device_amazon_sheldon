@@ -220,3 +220,10 @@ Sin probar en dispositivo.
   Añadido medidor: cada 5 s `audio to car: peak N dBFS` y `audio car mic: peak N dBFS` (-99 = silencio).
 - Canción de prueba: carplay/media/jazz_in_paris.mp3 (YouTube Audio Library, de AOSP samples) →
   /system/media/carplay, copiada a /sdcard/Music al arrancar (aparece en Música).
+
+## 2026-11-01 19:35 — composición a 540p + mp3 arreglado
+- Navegación solo con "atrás"/sin panel: culpa de carplay-check.sh (user_setup_complete=1 sin pasar el asistente → SetupWizard deja setDisabledForSetup). Arreglo: `pm disable org.lineageos.setupwizard` + reboot.
+- fps tope ~20 con encoder sin cola → cuello en composición GPU (1080p HDMI + copia 800x480). HWC solo ofrece 1920x1080.
+- ro.surface_flinger.max_graphics_width/height=960x540 (vendor): SF compone el primario a 540p y HWC escala. Global; la salida TV se ve más blanda.
+- mp3: exec de init no ve /sdcard (exit 1); ahora copia como media_rw a /data/media/0/Music (aparece en el siguiente escaneo/arranque).
+- Zip sha256 f73fa83e...777a. Sin probar.

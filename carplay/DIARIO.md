@@ -161,3 +161,12 @@ Pendiente: coche (cambio de rol a host, NCM, sesión CarPlay, vídeo/touch/audio
 - Daemon: nivel de log `debug` por defecto (`persist.vendor.carplay.log` para cambiarlo).
 - ROM: `persist.logd.logpersistd=logcatd` de serie → logcat+kernel en /data/misc/logd (quitar cuando funcione).
 - Recuperar logs: /mnt/DATA/los-build/carplay-pull-logs.sh (recovery → Enable ADB; sube el tgz a dungeon).
+
+## 2026-11-01 tarde — segunda prueba en coche (LG, vid 1004 pid 771a): llega a NCM
+Logs persistentes OK. Secuencia por intento (11 intentos): GadgetStarted → ReceivedEnable → coche pide
+cambio de rol (0x51) → ReceivedRoleSwitch → mtu3 pasa a host → coche enumera como accesorio
+"LG Electronics / Gadget iAP2" → cdc_ncm registra usb0 → ConfiguringNcm → **falla**: catplay ejecuta
+`/sbin/ip` (no existe en Android) → AccessoryFailedNCM(NotFound) → unbind y vuelta a empezar.
+Arreglo: build-daemon.sh reescribe `"/sbin/` → `"/system/bin/` en catplay (ip, modprobe, rmmod).
+Densidad vuelta a 320 (as-is) a petición del usuario.
+Siguiente punto de fallo posible: bonjour/mDNS en usb0 (puerto 5353 vs mdnsd de Android) y la sesión iAP2/AirPlay.

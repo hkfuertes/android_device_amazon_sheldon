@@ -38,7 +38,6 @@ PRODUCT_PACKAGES += SettingsOverlaySheldonTab
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/btmouse/btmousepair:$(TARGET_COPY_OUT_SYSTEM)/bin/btmousepair \
 
-# Density (240) is set per-product in BoardConfig.mk.
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/btmouse/default-permissions.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/default-permissions/btmouse.xml \
     $(LOCAL_PATH)/btmouse/privapp-permissions.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/privapp-permissions-com.amazon.sheldon.btmouse.xml \

@@ -16,6 +16,8 @@ git -C "$SRC" fetch -q origin "$CATPLAY_REV" 2>/dev/null || true
 git -C "$SRC" checkout -q -f "$CATPLAY_REV"
 
 for p in "$HERE"/catplay_android/patches/*.patch; do git -C "$SRC" apply "$p"; done
+# Android has ip/modprobe/rmmod in /system/bin, not /sbin
+grep -rl '"/sbin/' "$SRC/usb" --include=*.rs | xargs sed -i 's|"/sbin/|"/system/bin/|g'
 rm -rf "$SRC/catplay_android"
 cp -r "$HERE/catplay_android" "$SRC/catplay_android"
 rm -rf "$SRC/catplay_android/Dockerfile" "$SRC/catplay_android/patches"

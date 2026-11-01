@@ -14,17 +14,22 @@ $(call inherit-product, device/amazon/sheldon/device.mk)
 # Must be set before inheriting the common config below.
 PRODUCT_NO_CAMERA := true
 
-# Inherit some common LineageOS stuff.
-$(call inherit-product, vendor/lineage/config/common_full_tablet_wifionly.mk)
+# Phone flavour of LineageOS without telephony: common_full_phone.mk minus telephony.mk
+# (tablet_wifionly would add window_extensions + tablet characteristics, which misbehaved on the car screen).
+$(call inherit-product, vendor/lineage/config/common_full.mk)
+$(call inherit-product, vendor/lineage/config/wifionly.mk)
+PRODUCT_PACKAGES += LatinIME
+PRODUCT_PACKAGE_OVERLAYS += vendor/lineage/overlay/dictionaries
+PRODUCT_ENFORCE_RRO_EXCLUDED_OVERLAYS += vendor/lineage/overlay/dictionaries
 
 PRODUCT_NAME := lineage_sheldon_tab
 PRODUCT_DEVICE := sheldon
 PRODUCT_MANUFACTURER := Amzn
 PRODUCT_BRAND := Fire
-PRODUCT_MODEL := Fire TV Stick (Tablet UI)
+PRODUCT_MODEL := Fire TV Stick
 
-# Tablet UI overrides — device.mk sets tv/tvdpi for the TV product
-PRODUCT_CHARACTERISTICS := tablet
+# Phone UI overrides — device.mk sets tv/tvdpi for the TV product
+PRODUCT_CHARACTERISTICS := default
 PRODUCT_AAPT_PREF_CONFIG := xhdpi
 
 # Auto-pair BT mice on boot (no touch input on a TV stick).

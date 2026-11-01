@@ -232,3 +232,8 @@ Sin probar en dispositivo.
 - CarplayMic.jar gana `com.amazon.sheldon.carplay.Screen off|on` (SurfaceControl.setDisplayPowerMode en los displays físicos, como scrcpy --turn-screen-off). El daemon lo llama al arrancar captura y al cerrarla.
 - persist.vendor.carplay.screen_off=0 lo desactiva (por si el HWC de MTK se porta mal). Si el daemon muere en sesión, el panel vuelve con un ciclo sleep/wake.
 - Zip sha256 560a357b...1d57. Sin probar.
+
+## 2026-11-01 20:20 — sabor phone en vez de tablet
+- lineage_sheldon_tab.mk: common_full.mk + wifionly.mk + LatinIME (common_full_phone sin telephony.mk); fuera window_extensions y ro.build.characteristics=tablet; modelo "Fire TV Stick".
+- Se mantienen: sin teléfono (wifionly, sin Dialer/Messaging), sin batería (SettingsOverlaySheldonTab + icon_blacklist), sin cámara (PRODUCT_NO_CAMERA, sin Aperture).
+- Nombre de producto sigue lineage_sheldon_tab (lunch/BoardConfig). Zip sha256 3b001553...1904. Sin probar.

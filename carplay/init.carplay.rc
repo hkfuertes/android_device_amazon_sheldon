@@ -13,16 +13,17 @@ on property:persist.vendor.carplay.enable=1
     # the car's NCM link is IPv6 link-local only
     write /proc/sys/net/ipv6/conf/default/disable_ipv6 0
     mkdir /data/vendor/carplay 0700 root root
-    # Android policy routing has no "lookup main" rule, so connecting to the car's fe80::%usb0 gave
-    # ENETUNREACH. Send usb0-bound traffic to main (where the kernel puts the link-local route).
-    # ponytail: assumes the car NCM iface is usb0 (seen on the LG unit); add usb1 if another car differs
-    exec u:r:su:s0 root root -- /system/bin/ip -6 rule del oif usb0 lookup main pref 5000
-    exec u:r:su:s0 root root -- /system/bin/ip -6 rule add oif usb0 lookup main pref 5000
     # USB adb off, otherwise init + adbd retry binding g1 to the UDC every second (EBUSY loop)
     setprop sys.usb.config none
 
 # daemon only once Android is up (wm/scrcpy need system_server); also fires when enabled at runtime
 on property:sys.boot_completed=1 && property:persist.vendor.carplay.enable=1
+    # Android policy routing has no "lookup main" rule, so connecting to the car's fe80::%usb0 gave
+    # ENETUNREACH. Send usb0-bound traffic to main (where the kernel puts the link-local route).
+    # ponytail: assumes the car NCM iface is usb0 (seen on the LG unit); add usb1 if another car differs
+    # Added here, not at enable: on boot persist props fire before netd, which flushes ip rules on start.
+    exec u:r:su:s0 root root -- /system/bin/ip -6 rule del oif usb0 lookup main pref 5000
+    exec u:r:su:s0 root root -- /system/bin/ip -6 rule add oif usb0 lookup main pref 5000
     start vendor.catplay
 
 # also catches boot (persist.sys.usb.config=adb) with CarPlay left enabled

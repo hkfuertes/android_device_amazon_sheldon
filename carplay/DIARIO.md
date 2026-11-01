@@ -237,3 +237,8 @@ Sin probar en dispositivo.
 - lineage_sheldon_tab.mk: common_full.mk + wifionly.mk + LatinIME (common_full_phone sin telephony.mk); fuera window_extensions y ro.build.characteristics=tablet; modelo "Fire TV Stick".
 - Se mantienen: sin teléfono (wifionly, sin Dialer/Messaging), sin batería (SettingsOverlaySheldonTab + icon_blacklist), sin cámara (PRODUCT_NO_CAMERA, sin Aperture).
 - Nombre de producto sigue lineage_sheldon_tab (lunch/BoardConfig). Zip sha256 3b001553...1904. Sin probar.
+
+## 2026-11-01 20:55 — regla usb0 tras reiniciar
+- `carplay-check.sh arm` (ahora reinicia y verifica): tras reboot faltaba la regla `oif usb0 lookup main`. Al arrancar, los triggers de props persist corren antes de netd, y netd vacía las reglas ip al iniciar. Movida al trigger boot_completed && enable=1 (cubre también activar en caliente).
+- Ese run mostró además ROM vieja en el stick (tablet, sin 540p): no tenía flasheada la build phone.
+- Zip sha256 e09b1045...ee35. Sin probar.

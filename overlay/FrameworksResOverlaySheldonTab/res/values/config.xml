@@ -2,4 +2,6 @@
 <resources>
     <!-- Tablet UI needs the 3-button navigation bar (no TV remote Home). -->
     <bool name="config_showNavigationBar">true</bool>
+    <!-- Desktop use: freeform windows (Taskbar opens apps in windows). -->
+    <bool name="config_freeformWindowManagement">true</bool>
 </resources>

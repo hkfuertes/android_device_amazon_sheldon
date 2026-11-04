@@ -34,6 +34,9 @@ PRODUCT_PACKAGES += BtMouseAutoPair
 PRODUCT_PACKAGES += FrameworksResOverlaySheldonTab
 PRODUCT_PACKAGES += SettingsOverlaySheldonTab
 
+# Desktop: Taskbar (farmerbb) start menu + freeform windows.
+PRODUCT_PACKAGES += Taskbar
+
 # adb shell btmousepair -> opens the BT mouse pairing window
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/btmouse/btmousepair:$(TARGET_COPY_OUT_SYSTEM)/bin/btmousepair \

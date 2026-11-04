@@ -1,0 +1,30 @@
+// Taskbar by farmerbb (Apache-2.0), F-Droid build 6.2.2-r2 (versionCode 208).
+// https://f-droid.org/packages/com.farmerbb.taskbar/
+// sha256 58dc239cef19f05b527335e7b723dd3dfd1d8bb651a50ecc0f52402796e509d9
+android_app_import {
+    name: "Taskbar",
+    apk: "Taskbar.apk",
+    // ponytail: re-signed by the build (priv-app dex gets uncompressed, which breaks
+    // the F-Droid signature), so F-Droid updates won't install; update by bumping the APK here.
+    certificate: "testkey",
+    privileged: true,
+    dex_preopt: {
+        enabled: false,
+    },
+    required: [
+        "privapp-permissions-com.farmerbb.taskbar.xml",
+        "default-permissions-com.farmerbb.taskbar.xml",
+    ],
+}
+
+prebuilt_etc {
+    name: "privapp-permissions-com.farmerbb.taskbar.xml",
+    src: "privapp-permissions.xml",
+    sub_dir: "permissions",
+}
+
+prebuilt_etc {
+    name: "default-permissions-com.farmerbb.taskbar.xml",
+    src: "default-permissions.xml",
+    sub_dir: "default-permissions",
+}

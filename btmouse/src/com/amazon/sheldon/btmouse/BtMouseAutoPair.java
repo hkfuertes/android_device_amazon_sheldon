@@ -164,14 +164,10 @@ public class BtMouseAutoPair extends BroadcastReceiver {
         return false;
     }
 
-    /** CoDs we are willing to auto-bond: mice, mouse+kbd combos, generic
-     *  non-keyboard peripherals (some mice report this while pairing). */
+    /** Any HID peripheral (major class PERIPHERAL): mice, keyboards,
+     *  combos, generic/odd CoDs, remotes. */
     private static boolean isPairableClass(BluetoothClass cls) {
-        if (cls.getMajorDeviceClass() != BluetoothClass.Device.Major.PERIPHERAL) return false;
-        int dc = cls.getDeviceClass();
-        return dc == BluetoothClass.Device.PERIPHERAL_POINTING
-                || dc == BluetoothClass.Device.PERIPHERAL_KEYBOARD_POINTING
-                || dc == BluetoothClass.Device.PERIPHERAL_NON_KEYBOARD_NON_POINTING;
+        return cls.getMajorDeviceClass() == BluetoothClass.Device.Major.PERIPHERAL;
     }
 
     /** Device has no battery: hide the status-bar battery icon via the

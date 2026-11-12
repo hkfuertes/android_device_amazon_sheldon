@@ -1,0 +1,4 @@
+service amazonthermal-1.0 /vendor/bin/hw/fireos.hardware.amazonthermal@1.0-service
+    class hal
+    user system
+    group system

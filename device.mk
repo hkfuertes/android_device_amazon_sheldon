@@ -256,4 +256,10 @@ PRODUCT_PACKAGES += \
     libcompiler_rt-v29
 
 # Inherit the proprietary files
+# A15 host_init_verifier rejects the C-style comment header of these blobs;
+# same services, comment stripped. First PRODUCT_COPY_FILES entry wins.
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/configs/init/fireos.hardware.amazonthermal@1.0-service.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/fireos.hardware.amazonthermal@1.0-service.rc \
+    $(LOCAL_PATH)/configs/init/fireos.hardware.connectivity.networkpower@1.0-service.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/fireos.hardware.connectivity.networkpower@1.0-service.rc
+
 $(call inherit-product, vendor/amazon/sheldon/sheldon-vendor.mk)

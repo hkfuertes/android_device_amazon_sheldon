@@ -63,6 +63,7 @@ TARGET_USERIMAGES_USE_EXT4 := true
 
 # HIDL
 DEVICE_MANIFEST_FILE += $(DEVICE_PATH)/manifest.xml
+DEVICE_FRAMEWORK_COMPATIBILITY_MATRIX_FILE += $(DEVICE_PATH)/framework_compatibility_matrix.xml
 
 # HWUI
 HWUI_COMPILE_FOR_PERF := true
@@ -114,6 +115,9 @@ endif
 
 # Verified Boot
 BOARD_AVB_ENABLE := false
+
+# A15 defaults to A/B; sheldon is a non-A/B block-OTA device
+AB_OTA_UPDATER := false
 
 # VNDK
 BOARD_VNDK_VERSION := current
